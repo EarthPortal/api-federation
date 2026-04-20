@@ -63,6 +63,11 @@ public class OntoPortalTransformer implements DatabaseTransformer {
             transformedItem.put("ontologyType", ontologyType);
         }
 
+        Object foundIn = item.get("found_in");
+        if (foundIn != null) {
+            transformedItem.put("found_in", foundIn);
+        }
+
         String sourceName = getStringValue(item, "source_name");
         if(sourceName != null){
             transformedItem.put("source", sourceName);

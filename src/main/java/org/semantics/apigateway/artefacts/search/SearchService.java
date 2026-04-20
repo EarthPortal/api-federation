@@ -67,7 +67,7 @@ public class SearchService extends AbstractEndpointService {
                     .thenApply(transformedData -> flattenResponseList(transformedData, params, collection))
                     .thenApply(data -> filterOutByCollection(collection, data))
                     .thenApply(this::deduplicateResults)
-                    .thenApply(data -> sortResults(query, data))
+                    .thenApply(data -> reIndexResults(query, data))
                     .thenApply(x -> transformJsonLd(x, params))
                     .thenApply(data -> transformForTargetDbSchema(data, targetDbSchema, endpoint, params.getLang()))
                     .get();
@@ -117,7 +117,8 @@ public class SearchService extends AbstractEndpointService {
                     .thenApply(data -> this.transformApiResponses(data, endpoint))
                     .thenApply(transformedData -> flattenResponseList(transformedData, params, collection))
                     .thenApply(data -> filterOutByCollection(collection, data))
-                    .thenApply(data -> sortResults(query, data))
+                    .thenApply(this::deduplicateResults)
+                    .thenApply(data -> reIndexResults(query, data))
                     .thenApply(x -> transformJsonLd(x, params))
                     .thenApply(data -> transformForTargetDbSchema(data, targetDbSchema, endpoint, params.getLang()))
                     .get();
