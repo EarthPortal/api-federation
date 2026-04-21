@@ -63,14 +63,14 @@ public class OntoPortalTransformer implements DatabaseTransformer {
             transformedItem.put("ontologyType", ontologyType);
         }
 
-        Object foundIn = item.get("found_in");
-        if (foundIn != null) {
-            transformedItem.put("found_in", foundIn);
-        }
-
         String sourceName = getStringValue(item, "source_name");
         if(sourceName != null){
             transformedItem.put("source", sourceName);
+        }
+
+        Object foundIn = item.get("found_in");
+        if (foundIn instanceof List && shouldExposeFoundIn((List<?>) foundIn, sourceName)) {
+            transformedItem.put("found_in", foundIn);
         }
 
             if (iri != null) {
@@ -179,5 +179,20 @@ public class OntoPortalTransformer implements DatabaseTransformer {
     private String getStringValue(Map<String, Object> item, String key) {
         Object value = item.get(key);
         return value != null ? value.toString() : null;
+    }
+
+    private boolean shouldExposeFoundIn(List<?> foundIn, String sourceName) {
+        if (foundIn.size() > 1) {
+            return true;
+        }
+        if (foundIn.isEmpty() || sourceName == null) {
+            return false;
+        }
+        Object only = foundIn.get(0);
+        if (only instanceof Map) {
+            Object portal = ((Map<?, ?>) only).get("portal");
+            return portal == null || !portal.toString().equalsIgnoreCase(sourceName);
+        }
+        return true;
     }
 }
