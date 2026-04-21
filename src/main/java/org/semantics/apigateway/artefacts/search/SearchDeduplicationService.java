@@ -7,7 +7,7 @@ import java.util.*;
 @Service
 public class SearchDeduplicationService {
 
-    private static final Set<String> ONTOPORTAL_PORTALS = new HashSet<>(Arrays.asList("earthportal", "agroportal", "ecoportal", "biodivportal"));
+    private static final Set<String> ONTOPORTAL_PORTALS = new HashSet<>(Arrays.asList("earthportal", "agroportal", "ecoportal", "biodivportal", "lovportal"));
 
     public List<Map<String, Object>> deduplicate(List<Map<String, Object>> results) {
         if (results == null || results.isEmpty()) {
