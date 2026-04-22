@@ -28,14 +28,16 @@ public class SearchService extends AbstractEndpointService {
 
 
     private final SearchLocalIndexerService localIndexer;
+    private final SearchDeduplicationService deduplicationService;
 
     private static final Logger logger = LoggerFactory.getLogger(SearchService.class);
     private final CollectionService collectionService;
 
-    public SearchService(ConfigurationLoader configurationLoader, SearchLocalIndexerService localIndexer, CacheManager cacheManager, JsonLdTransform jsonLdTransform, ResponseTransformerService responseTransformerService, CollectionService collectionService ) {
+    public SearchService(ConfigurationLoader configurationLoader, SearchLocalIndexerService localIndexer, CacheManager cacheManager, JsonLdTransform jsonLdTransform, ResponseTransformerService responseTransformerService, CollectionService collectionService, SearchDeduplicationService deduplicationService) {
         super(configurationLoader, cacheManager, jsonLdTransform, responseTransformerService, RDFResource.class);
         this.localIndexer = localIndexer;
         this.collectionService = collectionService;
+        this.deduplicationService = deduplicationService;
     }
 
     public AggregatedApiResponse performSearch(String query, String database, String targetDbSchema, boolean showResponseConfiguration) {
@@ -78,7 +80,7 @@ public class SearchService extends AbstractEndpointService {
     }
 
     private AggregatedApiResponse deduplicateResults(AggregatedApiResponse data) {
-        List<Map<String, Object>> collection = data.getCollection();
+        List<Map<String, Object>> collection = deduplicationService.deduplicate(data.getCollection());
         data.setCollection(collection);
         data.setTotalCount(collection.size());
         return data;
