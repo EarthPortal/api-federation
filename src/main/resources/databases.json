@@ -31,6 +31,12 @@
       "apiKey": "13b97ee8-cdfb-4147-9260-af66e84b4afa"
     },
     {
+      "type": "ontoportal",
+      "name": "astroportal",
+      "url": "https://data.ontoportal-astro.eu",
+      "apiKey": "1de0a270-29c5-4dda-b043-7c3580628cd5"
+    },
+    {
       "type": "ols2",
       "name": "ebi",
       "url": "https://www.ebi.ac.uk/ols4/api/v2"
