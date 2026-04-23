@@ -12,10 +12,13 @@ public class OntoPortalTransformer implements DatabaseTransformer {
 
     private final Map<String, Object> contextConfig;
     private final JsonLdTransform jsonLdTransform;
+    private final String lang;
 
-    public OntoPortalTransformer(Map<String, Object> contextConfig, JsonLdTransform jsonLdTransform) {
+    public OntoPortalTransformer(Map<String, Object> contextConfig, JsonLdTransform jsonLdTransform, String lang) {
         this.contextConfig = contextConfig;
         this.jsonLdTransform = jsonLdTransform;
+        this.lang = lang;
+
     }
 
     @Override
@@ -63,6 +66,11 @@ public class OntoPortalTransformer implements DatabaseTransformer {
         String sourceName = getStringValue(item, "source_name");
         if(sourceName != null){
             transformedItem.put("source", sourceName);
+        }
+
+        Object foundIn = item.get("found_in");
+        if (foundIn instanceof List && shouldExposeFoundIn((List<?>) foundIn, sourceName)) {
+            transformedItem.put("found_in", foundIn);
         }
 
             if (iri != null) {
@@ -151,9 +159,7 @@ public class OntoPortalTransformer implements DatabaseTransformer {
             }
         }
 
-        if (language != null) {
-            context.put("@language", language);
-        }
+        context.put("@language", lang != null && !lang.isEmpty() ? lang : "en");
 
         return context;
     }
@@ -173,5 +179,20 @@ public class OntoPortalTransformer implements DatabaseTransformer {
     private String getStringValue(Map<String, Object> item, String key) {
         Object value = item.get(key);
         return value != null ? value.toString() : null;
+    }
+
+    private boolean shouldExposeFoundIn(List<?> foundIn, String sourceName) {
+        if (foundIn.size() > 1) {
+            return true;
+        }
+        if (foundIn.isEmpty() || sourceName == null) {
+            return false;
+        }
+        Object only = foundIn.get(0);
+        if (only instanceof Map) {
+            Object portal = ((Map<?, ?>) only).get("portal");
+            return portal == null || !portal.toString().equalsIgnoreCase(sourceName);
+        }
+        return true;
     }
 }

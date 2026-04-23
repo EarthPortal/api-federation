@@ -73,9 +73,23 @@ public class SearchLocalIndexerService {
 
         List<Map<String, Object>> localIndexedResult = localIndexSearch(query, logger, index, INDEXED_FIELD);
 
-        return localIndexedResult.stream().map(x ->
+        List<Map<String, Object>> ranked = localIndexedResult.stream().map(x ->
                 combinedResults.stream().filter(y -> y.get("iri").equals(x.get("iri")) && y.get("backend_type").equals(x.get("backend_type")))
-                .findFirst().orElse(null)).collect(Collectors.toList());
+                .findFirst().orElse(null))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+
+        Set<String> rankedKeys = ranked.stream()
+                .map(item -> item.get("iri") + "|" + item.get("backend_type"))
+                .collect(Collectors.toSet());
+
+        List<Map<String, Object>> leftovers = combinedResults.stream()
+                .filter(item -> !rankedKeys.contains(item.get("iri") + "|" + item.get("backend_type")))
+                .collect(Collectors.toList());
+
+        List<Map<String, Object>> merged = new ArrayList<>(ranked);
+        merged.addAll(leftovers);
+        return merged;
     }
 
     private static List<Map<String, Object>> localIndexSearch(String query, Logger logger, Directory index, String field) throws IOException {
