@@ -14,7 +14,6 @@ import org.apache.lucene.queries.spans.SpanQuery;
 import org.apache.lucene.queries.spans.SpanTermQuery;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.search.*;
-import org.apache.lucene.search.similarities.BM25Similarity;
 import org.apache.lucene.store.ByteBuffersDirectory;
 import org.apache.lucene.store.Directory;
 import org.slf4j.Logger;
@@ -95,7 +94,6 @@ public class SearchLocalIndexerService {
     private static List<Map<String, Object>> localIndexSearch(String query, Logger logger, Directory index, String field) throws IOException {
         IndexReader reader = DirectoryReader.open(index);
         IndexSearcher searcher = new IndexSearcher(reader);
-        searcher.setSimilarity(new BM25Similarity(1.2f, 0f));
         BooleanQuery.Builder mainQuery = new BooleanQuery.Builder();
 
         String[] terms = query.toLowerCase().split("\\s+");
@@ -192,8 +190,6 @@ public class SearchLocalIndexerService {
         Directory index = new ByteBuffersDirectory();
 
         IndexWriterConfig config = new IndexWriterConfig(new StandardAnalyzer());
-        config.setSimilarity(new BM25Similarity(1.2f, 0f));
-
         IndexWriter w = new IndexWriter(index, config);
 
 
