@@ -68,6 +68,11 @@ public class OntoPortalTransformer implements DatabaseTransformer {
             transformedItem.put("source", sourceName);
         }
 
+        Object categories = item.get("categories");
+        if (categories instanceof List) {
+            transformedItem.put("categories", categories);
+        }
+
         Object foundIn = item.get("found_in");
         if (foundIn instanceof List && shouldExposeFoundIn((List<?>) foundIn, sourceName)) {
             transformedItem.put("found_in", foundIn);

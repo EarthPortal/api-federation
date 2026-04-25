@@ -47,6 +47,10 @@ public class CommonRequestParams {
             array = @ArraySchema(schema = @Schema(type = "string")))
     private String display = "";
 
+    @QueryParam("categories")
+    @Parameter(name = "categories", in = ParameterIn.QUERY, description = "Filter results by ontology categories (comma separated)")
+    private String categories = "";
+
 
     public List<String> getDisplay() {
         List<String> result = new ArrayList<>();

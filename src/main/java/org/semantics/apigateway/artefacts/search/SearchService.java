@@ -19,8 +19,12 @@ import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 
 @Service
@@ -29,15 +33,17 @@ public class SearchService extends AbstractEndpointService {
 
     private final SearchLocalIndexerService localIndexer;
     private final SearchDeduplicationService deduplicationService;
+    private final OntologyCategoryCache categoryCache;
 
     private static final Logger logger = LoggerFactory.getLogger(SearchService.class);
     private final CollectionService collectionService;
 
-    public SearchService(ConfigurationLoader configurationLoader, SearchLocalIndexerService localIndexer, CacheManager cacheManager, JsonLdTransform jsonLdTransform, ResponseTransformerService responseTransformerService, CollectionService collectionService, SearchDeduplicationService deduplicationService) {
+    public SearchService(ConfigurationLoader configurationLoader, SearchLocalIndexerService localIndexer, CacheManager cacheManager, JsonLdTransform jsonLdTransform, ResponseTransformerService responseTransformerService, CollectionService collectionService, SearchDeduplicationService deduplicationService, OntologyCategoryCache categoryCache) {
         super(configurationLoader, cacheManager, jsonLdTransform, responseTransformerService, RDFResource.class);
         this.localIndexer = localIndexer;
         this.collectionService = collectionService;
         this.deduplicationService = deduplicationService;
+        this.categoryCache = categoryCache;
     }
 
     public AggregatedApiResponse performSearch(String query, String database, String targetDbSchema, boolean showResponseConfiguration) {
@@ -68,7 +74,9 @@ public class SearchService extends AbstractEndpointService {
                     .thenApply(data -> this.transformApiResponses(data, endpoint))
                     .thenApply(transformedData -> flattenResponseList(transformedData, params, collection))
                     .thenApply(data -> filterOutByCollection(collection, data))
+                    .thenApply(this::enrichWithCategories)
                     .thenApply(this::deduplicateResults)
+                    .thenApply(data -> filterByCategories(data, params.getCategories()))
                     .thenApply(data -> reIndexResults(query, data))
                     .thenApply(x -> transformJsonLd(x, params))
                     .thenApply(data -> transformForTargetDbSchema(data, targetDbSchema, endpoint, params.getLang()))
@@ -77,6 +85,61 @@ public class SearchService extends AbstractEndpointService {
             logger.error(e.getMessage(), e);
             return null;
         }
+    }
+
+    private AggregatedApiResponse enrichWithCategories(AggregatedApiResponse data) {
+        for (Map<String, Object> item : data.getCollection()) {
+            Object portal = item.get("source_name");
+            Object ontology = item.get("ontology");
+            if (portal == null || ontology == null) continue;
+            String acronym = extractAcronym(ontology.toString());
+            List<String> categories = categoryCache.getCategories(portal.toString(), acronym);
+            item.put("categories", categories);
+        }
+        return data;
+    }
+
+    private String extractAcronym(String ontology) {
+        int idx = ontology.lastIndexOf('/');
+        return idx >= 0 ? ontology.substring(idx + 1) : ontology;
+    }
+
+    private AggregatedApiResponse filterByCategories(AggregatedApiResponse data, String categoriesParam) {
+        if (categoriesParam == null || categoriesParam.isEmpty()) return data;
+        Set<String> wanted = Arrays.stream(categoriesParam.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(String::toLowerCase)
+                .collect(Collectors.toSet());
+        if (wanted.isEmpty()) return data;
+
+        List<Map<String, Object>> filtered = data.getCollection().stream()
+                .filter(item -> itemMatchesCategories(item, wanted))
+                .collect(Collectors.toList());
+        data.setCollection(filtered);
+        data.setTotalCount(filtered.size());
+        return data;
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean itemMatchesCategories(Map<String, Object> item, Set<String> wanted) {
+        Object foundIn = item.get("found_in");
+        if (foundIn instanceof List) {
+            for (Object entry : (List<Object>) foundIn) {
+                if (entry instanceof Map && hasMatchingCategory((List<?>) ((Map<String, Object>) entry).getOrDefault("categories", Collections.emptyList()), wanted)) {
+                    return true;
+                }
+            }
+        }
+        Object topCategories = item.get("categories");
+        return topCategories instanceof List && hasMatchingCategory((List<?>) topCategories, wanted);
+    }
+
+    private boolean hasMatchingCategory(List<?> categories, Set<String> wanted) {
+        for (Object c : categories) {
+            if (c != null && wanted.contains(c.toString().toLowerCase())) return true;
+        }
+        return false;
     }
 
     private AggregatedApiResponse deduplicateResults(AggregatedApiResponse data) {
@@ -119,7 +182,9 @@ public class SearchService extends AbstractEndpointService {
                     .thenApply(data -> this.transformApiResponses(data, endpoint))
                     .thenApply(transformedData -> flattenResponseList(transformedData, params, collection))
                     .thenApply(data -> filterOutByCollection(collection, data))
+                    .thenApply(this::enrichWithCategories)
                     .thenApply(this::deduplicateResults)
+                    .thenApply(data -> filterByCategories(data, params.getCategories()))
                     .thenApply(data -> reIndexResults(query, data))
                     .thenApply(x -> transformJsonLd(x, params))
                     .thenApply(data -> transformForTargetDbSchema(data, targetDbSchema, endpoint, params.getLang()))
@@ -129,7 +194,7 @@ public class SearchService extends AbstractEndpointService {
             return null;
         }
     }
-    
+
     private AggregatedApiResponse sortResults(String query, AggregatedApiResponse data) {
         List<Map<String, Object>> collection = data.getCollection();
         collection = this.localIndexer.sortByCosineSimilarity(query.replace("*", ""), collection);
