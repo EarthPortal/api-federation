@@ -38,12 +38,23 @@ public class SearchDeduplicationService {
             if (existing == null) {
                 Map<String, Object> copy = new LinkedHashMap<>(item);
                 copy.put("found_in", buildFoundInList(item));
+                copy.remove("categories");
                 grouped.put(key, copy);
             } else {
-                List<Map<String, String>> foundIn = (List<Map<String, String>>) existing.get("found_in");
-                Map<String, String> entry = buildFoundInEntry(item);
-                if (entry != null && !containsPortal(foundIn, entry.get("portal"))) {
+                List<Map<String, Object>> foundIn = (List<Map<String, Object>>) existing.get("found_in");
+                Map<String, Object> entry = buildFoundInEntry(item);
+                if (entry != null && !containsPortal(foundIn, (String) entry.get("portal"))) {
                     foundIn.add(entry);
+                }
+            }
+        }
+
+        for (Map<String, Object> item : grouped.values()) {
+            List<Map<String, Object>> foundIn = (List<Map<String, Object>>) item.get("found_in");
+            if (foundIn != null && foundIn.size() <= 1) {
+                item.remove("found_in");
+                if (foundIn != null && !foundIn.isEmpty()) {
+                    item.put("categories", foundIn.get(0).get("categories"));
                 }
             }
         }
@@ -53,7 +64,7 @@ public class SearchDeduplicationService {
         return result;
     }
 
-    private Map<String, String> buildFoundInEntry(Map<String, Object> item) {
+    private Map<String, Object> buildFoundInEntry(Map<String, Object> item) {
         Object sourceName = item.get("source_name");
         Object uiLink = item.get("source_url");
         if(sourceName == null)
@@ -61,10 +72,11 @@ public class SearchDeduplicationService {
         String portal = sourceName.toString().toLowerCase();
         if(!ONTOPORTAL_PORTALS.contains(portal))
             return null;
-        Map<String, String> p = new LinkedHashMap<>();
+        Map<String, Object> p = new LinkedHashMap<>();
         p.put("portal", portal);
         p.put("ui_link", uiLink == null ? "" : uiLink.toString());
-
+        Object categories = item.get("categories");
+        p.put("categories", categories instanceof List ? categories : Collections.emptyList());
         return p;
     }
 
@@ -92,19 +104,19 @@ public class SearchDeduplicationService {
         return "ontoportal".equalsIgnoreCase(backendType.toString());
     }
 
-    private boolean containsPortal(List<Map<String, String>> foundIn, String portal) {
+    private boolean containsPortal(List<Map<String, Object>> foundIn, String portal) {
         if(foundIn == null)
             return false;
-        for (Map<String, String> e : foundIn){
-            if(portal.equalsIgnoreCase(e.get("portal")))
+        for (Map<String, Object> e : foundIn){
+            if(portal.equalsIgnoreCase((String) e.get("portal")))
                 return true;
         }
         return false;
     }
 
     private Object buildFoundInList(Map<String, Object> item) {
-        List<Map<String, String>> list = new ArrayList<>();
-        Map<String, String> p = buildFoundInEntry(item);
+        List<Map<String, Object>> list = new ArrayList<>();
+        Map<String, Object> p = buildFoundInEntry(item);
         if(p != null)
             list.add(p);
         return list;
