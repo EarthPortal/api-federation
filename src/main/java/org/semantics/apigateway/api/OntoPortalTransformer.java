@@ -1,7 +1,6 @@
 package org.semantics.apigateway.api;
 
 import org.semantics.apigateway.config.ResponseMapping;
-import org.semantics.apigateway.model.responses.AggregatedResourceBody;
 import org.semantics.apigateway.service.JsonLdTransform;
 
 import java.net.URLEncoder;
@@ -35,6 +34,7 @@ public class OntoPortalTransformer implements DatabaseTransformer {
         String ontology = getStringValue(item, "ontology");
         String source = getStringValue(item, "source");
         String sourceUrl = getStringValue(item, "source_url");
+        String backendType = getStringValue(item, "backend_type");
 
         // Core fields
         if (label != null) {
@@ -86,8 +86,9 @@ public class OntoPortalTransformer implements DatabaseTransformer {
             transformedItem.put("@type", type);
         }
 
-        // Build links
-        if (source != null && ontology != null && iri != null) {
+        // build links  only for OntoPortal backends
+        if ("ontoportal".equalsIgnoreCase(backendType)
+                && source != null && ontology != null && iri != null) {
             String encodedIri = URLEncoder.encode(iri, StandardCharsets.UTF_8);
             String ontologyAcronym = ontology.contains("/") ? ontology.substring(ontology.lastIndexOf('/') + 1) : ontology;
             String selfUrl = source + "/ontologies/" + ontologyAcronym + "/classes/" + encodedIri;
@@ -109,16 +110,18 @@ public class OntoPortalTransformer implements DatabaseTransformer {
                 links.put("ui", sourceUrl);
             }
 
-            // Links @context from YAML config
+            // links @context from yaml
             Map<String, Object> linksContext = buildLinksContext();
             links.put("@context", linksContext);
 
             transformedItem.put("links", links);
         }
 
-        // Item-level @context generated from annotations
-        Map<String, Object> context = buildItemContext();
-        transformedItem.put("@context", context);
+        // item level @context generated from annotations
+        if ("ontoportal".equalsIgnoreCase(backendType)) {
+            Map<String, Object> context = buildItemContext();
+            transformedItem.put("@context", context);
+        }
 
         return transformedItem;
     }
@@ -146,16 +149,16 @@ public class OntoPortalTransformer implements DatabaseTransformer {
             context.put("@vocab", vocab);
         }
 
-        // Generate context from @ContextUri annotations
+        // generate context from @ContextUri annotations
         if (fieldMappings != null && jsonLdTransform != null) {
             Map<String, String> generatedContext = jsonLdTransform.generateContext(
                     org.semantics.apigateway.model.RDFResource.class, null);
 
             for (Map.Entry<String, String> entry : fieldMappings.entrySet()) {
-                String ontoPortalKey = entry.getKey();    // e.g. "prefLabel"
-                String javaFieldName = entry.getValue();   // e.g. "label"
+                String ontoPortalKey = entry.getKey();
+                String javaFieldName = entry.getValue();
 
-                // Check for override first
+                // check for override first
                 if (fieldOverrides != null && fieldOverrides.containsKey(ontoPortalKey)) {
                     context.put(ontoPortalKey, fieldOverrides.get(ontoPortalKey));
                 } else if (generatedContext.containsKey(javaFieldName)) {
