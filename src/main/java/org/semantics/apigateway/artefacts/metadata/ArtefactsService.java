@@ -78,7 +78,7 @@ public class ArtefactsService extends AbstractEndpointService {
                 .toList();
 
         data.setCollection(filtered);
-
+        data.setTotalCount(filtered.size());
         return data;
     }
 
