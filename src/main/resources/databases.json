@@ -32,7 +32,7 @@
     },
     {
       "type": "ontoportal",
-      "name": "astroportal",
+      "name": "ontoportal-astro",
       "url": "https://data.ontoportal-astro.eu",
       "apiKey": "1de0a270-29c5-4dda-b043-7c3580628cd5"
     },
