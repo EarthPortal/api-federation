@@ -33,10 +33,10 @@ import java.util.concurrent.Executor;
                 "\n" +
                 "A standout feature of this service is its dynamic nature, governed by a JSON configuration file. This design choice allows for easy extension and customization of the service to include new TS or modify existing configurations."),
         tags = {
-                @Tag(name = "Search", description = "The search endpoints"),
-                @Tag(name = "Artefacts / Metadata", description = "The artefacts metadata endpoints"),
-                @Tag(name = "Artefacts / Data", description = "The artefacts data endpoints"),
-                @Tag(name = "Ols", description = "The OLS endpoints"),
+                @Tag(name = "Search", description = "The search endpoints")
+//                @Tag(name = "Artefacts / Metadata", description = "The artefacts metadata endpoints"),
+//                @Tag(name = "Artefacts / Data", description = "The artefacts data endpoints"),
+//                @Tag(name = "Ols", description = "The OLS endpoints"),
         }
 )
 @SecurityScheme(
