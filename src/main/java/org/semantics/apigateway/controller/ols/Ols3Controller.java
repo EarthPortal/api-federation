@@ -55,40 +55,40 @@ public class Ols3Controller {
   
   @CrossOrigin
   @GetMapping("/suggest")
-  public Object performTermSuggestInOLSTargetDBSchema(@RequestParam String q, @RequestParam(required = false, defaultValue = "") String ontology, @RequestParam(required = false, defaultValue = "10") Integer rows, @RequestParam(required = false, defaultValue = "0") Integer start, @ParameterObject CommonRequestParams params) {
-    return searchService.suggestConcepts(ontology, q, start + 1, rows, params);
+  public Object performTermSuggestInOLSTargetDBSchema(@RequestParam String q, @RequestParam(required = false, defaultValue = "") String ontology, @RequestParam(required = false, defaultValue = "") String database, @RequestParam(required = false, defaultValue = "10") Integer rows, @RequestParam(required = false, defaultValue = "0") Integer start, @ParameterObject CommonRequestParams params) {
+    return searchService.suggestConcepts(database, ontology, q, start + 1, rows, params);
   }
-  
+
   @CrossOrigin
   @GetMapping("/terms")
-  public Object getAllTermsInOLSTargetDBSchema(@RequestParam(required = false, defaultValue = "0") Integer page, @QueryParam("iri") String iri, @ParameterObject CommonRequestParams params, @RequestParam(required = false) String collectionId) {
+  public Object getAllTermsInOLSTargetDBSchema(@RequestParam(required = false, defaultValue = "0") Integer page, @QueryParam("iri") String iri, @RequestParam(required = false, defaultValue = "") String database, @ParameterObject CommonRequestParams params, @RequestParam(required = false) String collectionId) {
     if (iri != null) {
-      return this.artefactsDataService.getArtefactTerms(iri, params, page + 1, null);
+      return this.artefactsDataService.getArtefactTerms(database, iri, params, page + 1, null);
     }
-    return this.artefactsDataService.getArtefactTerms("", params, page + 1, null);
+    return this.artefactsDataService.getArtefactTerms(database, "", params, page + 1, null);
   }
-  
+
   @CrossOrigin
   @GetMapping("/ontologies/{onto}/terms")
-  public Object getTermsInOLSTargetDBSchema(@PathVariable String onto, @RequestParam(required = false, defaultValue = "1") Integer page, @QueryParam("iri") String iri, @ParameterObject CommonRequestParams params) {
+  public Object getTermsInOLSTargetDBSchema(@PathVariable String onto, @RequestParam(required = false, defaultValue = "1") Integer page, @QueryParam("iri") String iri, @RequestParam(required = false, defaultValue = "") String database, @ParameterObject CommonRequestParams params) {
     if (iri != null) {
-      return this.artefactsDataService.getArtefactTerm(onto, iri, params, null);
+      return this.artefactsDataService.getArtefactTerm(database, onto, iri, params, null);
     }
-    return this.artefactsDataService.getArtefactTerms(onto, params, page + 1, null);
+    return this.artefactsDataService.getArtefactTerms(database, onto, params, page + 1, null);
   }
-  
+
   @CrossOrigin
   @GetMapping("/ontologies/{onto}")
-  public Object getArtefactMetadataInOLSTargetDBSchema(@PathVariable String onto, @ParameterObject CommonRequestParams params) {
-    return this.artefactsService.getArtefact(onto, params, null);
+  public Object getArtefactMetadataInOLSTargetDBSchema(@PathVariable String onto, @RequestParam(required = false, defaultValue = "") String database, @ParameterObject CommonRequestParams params) {
+    return this.artefactsService.getArtefact(database, onto, params, null);
   }
-  
+
   @CrossOrigin
   @GetMapping("/ontologies")
-  public Object getArtefactsInOLSTargetDBSchema(@ParameterObject CommonRequestParams params,
+  public Object getArtefactsInOLSTargetDBSchema(@RequestParam(required = false, defaultValue = "") String database, @ParameterObject CommonRequestParams params,
                                                 @Parameter(description = "Collection id to browse terminologies in") @RequestParam(required = false) String collectionId) {
     User user = authService.tryGetCurrentUser();
-    return this.artefactsService.getArtefacts(params, collectionId, user, null);
+    return this.artefactsService.getArtefacts(database, params, collectionId, user, null);
   }
 }
 

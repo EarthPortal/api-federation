@@ -49,20 +49,19 @@ public class SearchService extends AbstractEndpointService {
     public AggregatedApiResponse performSearch(String query, String database, String targetDbSchema, boolean showResponseConfiguration) {
         TargetDbSchema targetDbSchemaEnum = targetDbSchema == null ? null : TargetDbSchema.valueOf(targetDbSchema);
         CommonRequestParams commonRequestParams = new CommonRequestParams();
-        commonRequestParams.setDatabase(database);
         commonRequestParams.setTargetDbSchema(targetDbSchemaEnum);
         commonRequestParams.setShowResponseConfiguration(showResponseConfiguration);
-        return performSearch(query, commonRequestParams, null, null, null);
+        return performSearch(database, query, commonRequestParams, null, null, null);
     }
-    
+
     public AggregatedApiResponse performSearch(
+            String database,
             String query,
             CommonRequestParams params,
             String collectionId,
             User currentUser,
             ApiAccessor accessor) {
         String endpoint = "search";
-        String database = params.getDatabase();
         TargetDbSchema targetDbSchema = params.getTargetDbSchema();
         TerminologyCollection collection = collectionService.getCurrentUserCollection(collectionId, currentUser);
         accessor = initAccessor(database, endpoint, accessor);
@@ -150,15 +149,17 @@ public class SearchService extends AbstractEndpointService {
     }
 
     public AggregatedApiResponse suggestConcepts(
+            String database,
             String id,
             String query,
             int offset,
             int size,
             CommonRequestParams params) {
-        return suggestConcepts(id, query, offset, size, params, null, null, null);
+        return suggestConcepts(database, id, query, offset, size, params, null, null, null);
     }
 
     public AggregatedApiResponse suggestConcepts(
+            String database,
             String id,
             String query,
             int offset,
@@ -168,7 +169,6 @@ public class SearchService extends AbstractEndpointService {
             User currentUser,
             ApiAccessor accessor) {
         String endpoint = "suggest";
-        String database = params.getDatabase();
         TargetDbSchema targetDbSchema = params.getTargetDbSchema();
         TerminologyCollection collection = collectionService.getCurrentUserCollection(collectionId, currentUser);
         accessor = initAccessor(database, endpoint, accessor);
