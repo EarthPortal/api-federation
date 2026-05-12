@@ -29,9 +29,9 @@ public class SearchController {
     }
 
 
-    @Operation(summary = "Search all of the content in a catalogue.")
+    @Operation(summary = "Search concepts across the federated catalogues.")
     @SecurityRequirement(name = "BearerAuth")
-    @GetMapping(value = {"/search", "/search/content"})
+    @GetMapping(value = "/search")
     public Object search(
             @Parameter(description = "The text to search", example = "plant")
             @RequestParam String query,
