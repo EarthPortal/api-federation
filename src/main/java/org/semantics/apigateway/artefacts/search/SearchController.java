@@ -36,7 +36,7 @@ public class SearchController {
             @Parameter(description = "The text to search", example = "plant")
             @RequestParam String query,
             @ParameterObject CommonRequestParams params,
-            @Parameter(description = "Collection id to search in")
+            @Parameter(description = "Collection id to search in", hidden = true)
             @RequestParam(required = false) String collectionId
     ) {
         User user = authService.tryGetCurrentUser();
@@ -52,18 +52,12 @@ public class SearchController {
             @Parameter(description = "Choose on which databases of backend type to run the search")
             @RequestParam(required = false, defaultValue = "") String database,
             @Parameter(description = "Transform the response result to a specific schema")
-            @RequestParam(required = false) TargetDbSchema targetDbSchema,
-            @Parameter(description = "Choose the attribute to display in the results (comma separated)")
-            @RequestParam(required = false, defaultValue = "") String display,
-            @RequestParam(required = false) boolean showResponseConfiguration,
-            @RequestParam(required = false) boolean displayEmptyValues
+            @RequestParam(required = false) TargetDbSchema targetDbSchema
     ) {
         CommonRequestParams params = new CommonRequestParams();
         params.setDatabase(database);
         params.setTargetDbSchema(targetDbSchema);
-        params.setDisplay(display);
-        params.setShowResponseConfiguration(showResponseConfiguration);
-        params.setDisplayEmptyValues(displayEmptyValues);
+
         return artefactsService.searchMetadata(query, params, null);
     }
 }
