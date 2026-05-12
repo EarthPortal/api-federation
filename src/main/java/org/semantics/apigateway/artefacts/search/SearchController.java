@@ -35,12 +35,14 @@ public class SearchController {
     public Object search(
             @Parameter(description = "The text to search", example = "plant")
             @RequestParam String query,
+            @Parameter(description = "Choose one or more OntoPortal sources to search (comma-separated). Use 'ontoportal' to search all portals at once. Available: agroportal, earthportal, biodivportal, ecoportal, lovportal, ontoportal-astro.", example = "ontoportal")
+            @RequestParam String database,
             @ParameterObject CommonRequestParams params,
             @Parameter(description = "Collection id to search in", hidden = true)
             @RequestParam(required = false) String collectionId
     ) {
         User user = authService.tryGetCurrentUser();
-        return searchService.performSearch(query, params, collectionId, user, null);
+        return searchService.performSearch(database, query, params, collectionId, user, null);
     }
 
 
@@ -49,15 +51,14 @@ public class SearchController {
     public Object searchMetadata(
             @Parameter(description = "The text to search", example = "plant")
             @RequestParam String query,
-            @Parameter(description = "Choose on which databases of backend type to run the search")
-            @RequestParam(required = false, defaultValue = "") String database,
+            @Parameter(description = "Choose one or more OntoPortal sources to search (comma-separated). Use 'ontoportal' to search all portals at once. Available: agroportal, earthportal, biodivportal, ecoportal, lovportal, ontoportal-astro.", example = "ontoportal")
+            @RequestParam String database,
             @Parameter(description = "Transform the response result to a specific schema")
             @RequestParam(required = false) TargetDbSchema targetDbSchema
     ) {
         CommonRequestParams params = new CommonRequestParams();
-        params.setDatabase(database);
         params.setTargetDbSchema(targetDbSchema);
 
-        return artefactsService.searchMetadata(query, params, null);
+        return artefactsService.searchMetadata(database, query, params, null);
     }
 }

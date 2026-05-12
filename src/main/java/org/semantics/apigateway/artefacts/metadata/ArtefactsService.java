@@ -31,11 +31,11 @@ public class ArtefactsService extends AbstractEndpointService {
     }
 
 
-    public Object getArtefacts(CommonRequestParams params, String collectionId, User currentUser, ApiAccessor accessor) {
+    public Object getArtefacts(String database, CommonRequestParams params, String collectionId, User currentUser, ApiAccessor accessor) {
         String endpoint = "resources";
         try {
             return
-                    findAllArtefacts(params, collectionId, currentUser, accessor)
+                    findAllArtefacts(database, params, collectionId, currentUser, accessor)
                             .thenApply(data -> transformJsonLd(data, params))
                             .thenApply(data -> transformForTargetDbSchema(data, params.getTargetDbSchema(), endpoint)).get();
         } catch (InterruptedException | ExecutionException e) {
@@ -45,14 +45,14 @@ public class ArtefactsService extends AbstractEndpointService {
     }
 
 
-    public Object getArtefact(String id, CommonRequestParams params, ApiAccessor accessor) {
-        return findUri(id, null, "resource_details", params, accessor);
+    public Object getArtefact(String database, String id, CommonRequestParams params, ApiAccessor accessor) {
+        return findUri(database, id, null, "resource_details", params, accessor);
     }
 
 
-    public Object searchMetadata(String query, CommonRequestParams params, ApiAccessor accessor) {
+    public Object searchMetadata(String database, String query, CommonRequestParams params, ApiAccessor accessor) {
         String endpoint = "resources";
-        return findAllArtefacts(params, null, null, accessor)
+        return findAllArtefacts(database, params, null, null, accessor)
                 .thenApply(data -> filterOutByQuery(query, data))
                 .thenApply(x -> transformJsonLd(x, params))
                 .thenApply(data -> transformForTargetDbSchema(data, params.getTargetDbSchema(), endpoint));
@@ -82,9 +82,8 @@ public class ArtefactsService extends AbstractEndpointService {
         return data;
     }
 
-    private CompletableFuture<AggregatedApiResponse> findAllArtefacts(CommonRequestParams params, String collectionId, User currentUser, ApiAccessor accessor) {
+    private CompletableFuture<AggregatedApiResponse> findAllArtefacts(String database, CommonRequestParams params, String collectionId, User currentUser, ApiAccessor accessor) {
         String endpoint = "resources";
-        String database = params.getDatabase();
         TerminologyCollection collection = collectionService.getCurrentUserCollection(collectionId, currentUser);
 
         accessor = initAccessor(database, endpoint, accessor);

@@ -30,16 +30,23 @@ public class ArtefactsController {
     @GetMapping("/artefacts")
     @Operation(summary = "Get information about all semantic artefacts.")
     @SecurityRequirement(name = "BearerAuth")
-    public Object getArtefacts(@ParameterObject CommonRequestParams params,
-                                          @Parameter(description = "Collection id to browse terminologies in") @RequestParam(required = false) String collectionId) throws ExecutionException, InterruptedException {
+    public Object getArtefacts(
+            @Parameter(description = "Choose one or more OntoPortal sources to search (comma-separated). Use 'ontoportal' to search all portals at once. Available: agroportal, earthportal, biodivportal, ecoportal, lovportal, ontoportal-astro.", example = "ontoportal")
+            @RequestParam String database,
+            @ParameterObject CommonRequestParams params,
+            @Parameter(description = "Collection id to browse terminologies in") @RequestParam(required = false) String collectionId) throws ExecutionException, InterruptedException {
         User user = authService.tryGetCurrentUser();
-        return this.artefactsService.getArtefacts(params, collectionId, user, null);
+        return this.artefactsService.getArtefacts(database, params, collectionId, user, null);
     }
 
     @GetMapping("/artefacts/{id}")
     @Operation(summary = "Get information about a semantic artefact.")
-    public Object getArtefact(@PathVariable("id") String id, @ParameterObject CommonRequestParams params) {
-        return this.artefactsService.getArtefact(id, params, null);
+    public Object getArtefact(
+            @PathVariable("id") String id,
+            @Parameter(description = "Choose one or more OntoPortal sources to search (comma-separated). Use 'ontoportal' to search all portals at once. Available: agroportal, earthportal, biodivportal, ecoportal, lovportal, ontoportal-astro.", example = "ontoportal")
+            @RequestParam String database,
+            @ParameterObject CommonRequestParams params) {
+        return this.artefactsService.getArtefact(database, id, params, null);
     }
 
 }

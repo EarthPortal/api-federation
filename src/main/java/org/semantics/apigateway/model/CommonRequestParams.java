@@ -17,13 +17,6 @@ import java.util.List;
 @Component
 public class CommonRequestParams {
 
-    @QueryParam("database")
-    @Parameter(
-            name = "database",
-            description = "Choose on which databases of backend type to run the search"
-    )
-    private String database = "";
-
     @QueryParam("targetDbSchema")
     @Parameter(name = "targetDbSchema", in = ParameterIn.QUERY, description = "Transform the response result to a specific schema")
     private TargetDbSchema targetDbSchema;

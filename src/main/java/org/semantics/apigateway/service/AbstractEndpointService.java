@@ -419,44 +419,44 @@ public abstract class AbstractEndpointService {
     }
 
 
-    protected Object paginatedList(String acronym, String uri, String endpoint, CommonRequestParams params,
+    protected Object paginatedList(String database, String acronym, String uri, String endpoint, CommonRequestParams params,
                                    Integer page, ApiAccessor accessor) {
 
-        String database = params.getDatabase();
         TargetDbSchema targetDbSchema = params.getTargetDbSchema();
         accessor = initAccessor(database, endpoint, accessor);
         List<String> ids = getRequestIds(accessor, acronym, uri);
         ids.add(page.toString());
+        final String db = database;
 
         return accessor.get(ids.toArray(new String[0]))
                 .thenApply(data -> this.transformApiResponses(data, endpoint, true))
-                .thenApply(data -> selectResultsByDatabase(data, database))
+                .thenApply(data -> selectResultsByDatabase(data, db))
                 .thenApply(x -> paginate(x, params, page))
                 .thenApply(x -> transformJsonLd(x, params))
                 .thenApply(data -> transformForTargetDbSchema(data, targetDbSchema, endpoint, true));
     }
 
-    protected Object paginatedList(String id, String endpoint, CommonRequestParams params, Integer
+    protected Object paginatedList(String database, String id, String endpoint, CommonRequestParams params, Integer
             page, ApiAccessor accessor) {
-        return paginatedList(id, null, endpoint, params, page, accessor);
+        return paginatedList(database, id, null, endpoint, params, page, accessor);
     }
 
 
-    protected CompletableFuture<AggregatedApiResponse> findAll(String acronym, String uri, String endpoint, CommonRequestParams params, ApiAccessor accessor) {
-        String database = params.getDatabase();
+    protected CompletableFuture<AggregatedApiResponse> findAll(String database, String acronym, String uri, String endpoint, CommonRequestParams params, ApiAccessor accessor) {
         accessor = initAccessor(database, endpoint, accessor);
         List<String> ids = getRequestIds(accessor, acronym, uri);
+        final String db = database;
 
         return accessor.get(ids.toArray(new String[0]))
                 .thenApply(data -> this.transformApiResponses(data, endpoint))
-                .thenApply(data -> selectResultsByDatabase(data, database))
+                .thenApply(data -> selectResultsByDatabase(data, db))
                 .thenApply(data -> listResponse(data, params))
                 .thenApply(x -> transformJsonLd(x, params));
     }
 
-    protected CompletableFuture<AggregatedApiResponse> findAll(String id, String endpoint, CommonRequestParams params, ApiAccessor
+    protected CompletableFuture<AggregatedApiResponse> findAll(String database, String id, String endpoint, CommonRequestParams params, ApiAccessor
             accessor) {
-        return findAll(id, null, endpoint, params, accessor);
+        return findAll(database, id, null, endpoint, params, accessor);
     }
 
     private List<String> getRequestIds(ApiAccessor accessor, String acronym, String uri) {
@@ -470,17 +470,17 @@ public abstract class AbstractEndpointService {
         return ids;
     }
 
-    protected AggregatedApiResponse findUri(String id, String uri, String endpoint, CommonRequestParams params, ApiAccessor
+    protected AggregatedApiResponse findUri(String database, String id, String uri, String endpoint, CommonRequestParams params, ApiAccessor
             accessor) {
-        String database = params.getDatabase();
         TargetDbSchema targetDbSchema = params.getTargetDbSchema();
         accessor = initAccessor(database, endpoint, accessor);
         List<String> ids = getRequestIds(accessor, id, uri);
+        final String db = database;
         try {
             return accessor.get(ids.toArray(new String[0]))
                     .thenApply(data -> this.transformApiResponses(data, endpoint))
                     .thenApply(x -> filterById(x, ids))
-                    .thenApply(data -> selectResultsByDatabase(data, database))
+                    .thenApply(data -> selectResultsByDatabase(data, db))
                     .thenApply(x -> singleResponse(x, params))
                     .thenApply(x -> transformJsonLd(x, params))
                     .thenApply(data -> transformForTargetDbSchema(data, targetDbSchema, endpoint, false))
