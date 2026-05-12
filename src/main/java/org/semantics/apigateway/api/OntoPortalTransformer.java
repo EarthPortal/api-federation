@@ -69,8 +69,13 @@ public class OntoPortalTransformer implements DatabaseTransformer {
         }
 
         Object categories = item.get("categories");
-        if (categories instanceof List) {
+        if (categories instanceof List && !((List<?>) categories).isEmpty()) {
             transformedItem.put("categories", categories);
+        } else {
+            Object subject = item.get("subject");
+            if (subject instanceof List && !((List<?>) subject).isEmpty()) {
+                transformedItem.put("categories", subject);
+            }
         }
 
         Object foundIn = item.get("found_in");

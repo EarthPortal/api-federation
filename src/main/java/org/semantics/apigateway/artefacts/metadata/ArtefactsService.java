@@ -14,10 +14,13 @@ import org.semantics.apigateway.service.configuration.ConfigurationLoader;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 
 @Service
@@ -54,8 +57,40 @@ public class ArtefactsService extends AbstractEndpointService {
         String endpoint = "resources";
         return findAllArtefacts(database, params, null, null, accessor)
                 .thenApply(data -> filterOutByQuery(query, data))
+                .thenApply(data -> filterByCategories(data, params.getCategories()))
                 .thenApply(x -> transformJsonLd(x, params))
                 .thenApply(data -> transformForTargetDbSchema(data, params.getTargetDbSchema(), endpoint));
+    }
+
+    private AggregatedApiResponse filterByCategories(AggregatedApiResponse data, String categoriesParam) {
+        if (categoriesParam == null || categoriesParam.isEmpty()) return data;
+        Set<String> wanted = Arrays.stream(categoriesParam.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(String::toLowerCase)
+                .collect(Collectors.toSet());
+        if (wanted.isEmpty()) return data;
+
+        List<Map<String, Object>> filtered = data.getCollection().stream()
+                .filter(item -> itemMatchesCategories(item, wanted))
+                .collect(Collectors.toList());
+        data.setCollection(filtered);
+        data.setTotalCount(filtered.size());
+        return data;
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean itemMatchesCategories(Map<String, Object> item, Set<String> wanted) {
+        Object subject = item.get("subject");
+        if (!(subject instanceof List)) return false;
+        for (Object s : (List<Object>) subject) {
+            if (s == null) continue;
+            String url = s.toString().toLowerCase();
+            for (String w : wanted) {
+                if (url.endsWith("/categories/" + w) || url.contains(w)) return true;
+            }
+        }
+        return false;
     }
 
     private AggregatedApiResponse filterOutByQuery(String query, AggregatedApiResponse data) {
