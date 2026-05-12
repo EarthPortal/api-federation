@@ -34,16 +34,18 @@ public class SearchService extends AbstractEndpointService {
     private final SearchLocalIndexerService localIndexer;
     private final SearchDeduplicationService deduplicationService;
     private final OntologyCategoryCache categoryCache;
+    private final NercSparqlEnrichmentService nercSparqlEnrichmentService;
 
     private static final Logger logger = LoggerFactory.getLogger(SearchService.class);
     private final CollectionService collectionService;
 
-    public SearchService(ConfigurationLoader configurationLoader, SearchLocalIndexerService localIndexer, CacheManager cacheManager, JsonLdTransform jsonLdTransform, ResponseTransformerService responseTransformerService, CollectionService collectionService, SearchDeduplicationService deduplicationService, OntologyCategoryCache categoryCache) {
+    public SearchService(ConfigurationLoader configurationLoader, SearchLocalIndexerService localIndexer, CacheManager cacheManager, JsonLdTransform jsonLdTransform, ResponseTransformerService responseTransformerService, CollectionService collectionService, SearchDeduplicationService deduplicationService, OntologyCategoryCache categoryCache, NercSparqlEnrichmentService nercSparqlEnrichmentService) {
         super(configurationLoader, cacheManager, jsonLdTransform, responseTransformerService, RDFResource.class);
         this.localIndexer = localIndexer;
         this.collectionService = collectionService;
         this.deduplicationService = deduplicationService;
         this.categoryCache = categoryCache;
+        this.nercSparqlEnrichmentService = nercSparqlEnrichmentService;
     }
 
     public AggregatedApiResponse performSearch(String query, String database, String targetDbSchema, boolean showResponseConfiguration) {
@@ -75,6 +77,7 @@ public class SearchService extends AbstractEndpointService {
                     .thenApply(transformedData -> flattenResponseList(transformedData, params, collection))
                     .thenApply(data -> filterOutByCollection(collection, data))
                     .thenApply(this::enrichWithCategories)
+                    .thenApply(nercSparqlEnrichmentService::enrich)
                     .thenApply(this::deduplicateResults)
                     .thenApply(data -> filterByCategories(data, params.getCategories()))
                     .thenApply(data -> reIndexResults(query, data))
