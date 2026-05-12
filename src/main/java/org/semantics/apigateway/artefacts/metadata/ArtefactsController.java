@@ -34,7 +34,10 @@ public class ArtefactsController {
             @Parameter(description = "Choose one or more OntoPortal sources to search (comma-separated). Use 'ontoportal' to search all portals at once. Available: agroportal, earthportal, biodivportal, ecoportal, lovportal, ontoportal-astro.", example = "ontoportal")
             @RequestParam String database,
             @ParameterObject CommonRequestParams params,
-            @Parameter(description = "Collection id to browse terminologies in") @RequestParam(required = false) String collectionId) throws ExecutionException, InterruptedException {
+            @Parameter(description = "Collection id to browse terminologies in", hidden = true)
+            @RequestParam(required = false)
+            String collectionId
+    ) throws ExecutionException, InterruptedException {
         User user = authService.tryGetCurrentUser();
         return this.artefactsService.getArtefacts(database, params, collectionId, user, null);
     }
