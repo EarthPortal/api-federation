@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.semantics.apigateway.model.CommonRequestParams;
+import org.semantics.apigateway.model.TargetDbSchema;
 import org.semantics.apigateway.model.user.User;
 import org.semantics.apigateway.service.auth.AuthService;
 import org.springdoc.core.annotations.ParameterObject;
@@ -45,10 +46,14 @@ public class ArtefactsController {
     @GetMapping("/artefacts/{id}")
     @Operation(summary = "Get information about a semantic artefact.")
     public Object getArtefact(
+            @Parameter(description = "Acronym of the artefact (e.g. GEMET, ACTRIS, AGROVOC)", example = "GEMET")
             @PathVariable("id") String id,
             @Parameter(description = "Choose one or more OntoPortal sources to search (comma-separated). Use 'ontoportal' to search all portals at once. Available: agroportal, earthportal, biodivportal, ecoportal, lovportal, ontoportal-astro.", example = "ontoportal")
             @RequestParam String database,
-            @ParameterObject CommonRequestParams params) {
+            @Parameter(description = "Transform the response result to a specific schema")
+            @RequestParam(required = false) TargetDbSchema targetDbSchema) {
+        CommonRequestParams params = new CommonRequestParams();
+        params.setTargetDbSchema(targetDbSchema);
         return this.artefactsService.getArtefact(database, id, params, null);
     }
 
