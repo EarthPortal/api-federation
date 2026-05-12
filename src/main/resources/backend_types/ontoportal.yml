@@ -65,6 +65,8 @@ models:
     createdWith: usedOntologyEngineeringTool
     obsolete: obsolete
     accessRights: ontology->viewingRestriction
+    administeredBy: ontology->administeredBy
+    group: ontology->group
   term: &term
     label: prefLabel|label
     iri: "@id"
