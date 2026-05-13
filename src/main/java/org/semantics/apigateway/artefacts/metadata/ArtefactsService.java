@@ -44,6 +44,7 @@ public class ArtefactsService extends AbstractEndpointService {
         try {
             return
                     findAllArtefacts(database, params, collectionId, currentUser, accessor)
+                            .thenApply(data -> filterByCategories(data, params.getCategories()))
                             .thenApply(data -> transformJsonLd(data, params))
                             .thenApply(data -> transformForTargetDbSchema(data, params.getTargetDbSchema(), endpoint)).get();
         } catch (InterruptedException | ExecutionException e) {
