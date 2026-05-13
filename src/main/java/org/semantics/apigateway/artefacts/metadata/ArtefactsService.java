@@ -1,5 +1,7 @@
 package org.semantics.apigateway.artefacts.metadata;
 
+import org.apache.lucene.queryparser.classic.ParseException;
+import org.semantics.apigateway.artefacts.search.SearchLocalIndexerService;
 import org.semantics.apigateway.collections.CollectionService;
 import org.semantics.apigateway.collections.models.TerminologyCollection;
 import org.semantics.apigateway.model.CommonRequestParams;
@@ -14,6 +16,7 @@ import org.semantics.apigateway.service.configuration.ConfigurationLoader;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -27,10 +30,12 @@ import java.util.stream.Collectors;
 public class ArtefactsService extends AbstractEndpointService {
 
     private final CollectionService collectionService;
+    private final SearchLocalIndexerService localIndexer;
 
-    public ArtefactsService(ConfigurationLoader configurationLoader, CacheManager cacheManager, JsonLdTransform transform, ResponseTransformerService responseTransformerService, CollectionService collectionService) {
+    public ArtefactsService(ConfigurationLoader configurationLoader, CacheManager cacheManager, JsonLdTransform transform, ResponseTransformerService responseTransformerService, CollectionService collectionService, SearchLocalIndexerService localIndexer) {
         super(configurationLoader, cacheManager, transform, responseTransformerService, SemanticArtefact.class);
         this.collectionService = collectionService;
+        this.localIndexer = localIndexer;
     }
 
 
@@ -58,8 +63,21 @@ public class ArtefactsService extends AbstractEndpointService {
         return findAllArtefacts(database, params, null, null, accessor)
                 .thenApply(data -> filterOutByQuery(query, data))
                 .thenApply(data -> filterByCategories(data, params.getCategories()))
+                .thenApply(data -> reIndexResults(query, data))
                 .thenApply(x -> transformJsonLd(x, params))
                 .thenApply(data -> transformForTargetDbSchema(data, params.getTargetDbSchema(), endpoint));
+    }
+
+    private AggregatedApiResponse reIndexResults(String query, AggregatedApiResponse data) {
+        if (query == null || query.isEmpty()) return data;
+        List<Map<String, Object>> collection = data.getCollection();
+        try {
+            collection = this.localIndexer.reIndexResults(query.replace("*", ""), collection, logger);
+        } catch (IOException | ParseException e) {
+            throw new RuntimeException("Error during re-indexing results", e);
+        }
+        data.setCollection(collection);
+        return data;
     }
 
     private AggregatedApiResponse filterByCategories(AggregatedApiResponse data, String categoriesParam) {
