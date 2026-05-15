@@ -75,6 +75,7 @@ public class SearchService extends AbstractEndpointService {
         
         try {
             return accessor.get(query)
+                    .thenApply(raw -> normalizeOntoPortalMultilingualRaw(raw, query, params.getLang()))
                     .thenApply(data -> this.transformApiResponses(data, endpoint))
                     .thenApply(transformedData -> flattenResponseList(transformedData, params, collection))
                     .thenApply(data -> normalizeMultilingualLabels(data, query, params.getLang()))
@@ -90,6 +91,49 @@ public class SearchService extends AbstractEndpointService {
             logger.error(e.getMessage(), e);
             return null;
         }
+    }
+
+    private Map<String, ApiResponse> normalizeOntoPortalMultilingualRaw(
+            Map<String, ApiResponse> data, String query, String langParam) {
+        if (!isMultiLang(langParam)) {
+            return data;
+        }
+        List<String> requestedLangs = parseLangs(langParam);
+
+        data.forEach((url, response) -> {
+            if (response == null || response.getResponseBody() == null) return;
+
+            DatabaseConfig config;
+            try {
+                URL u = new URL(url);
+                String baseUrl = u.getProtocol() + "://" + u.getHost();
+                config = configurationLoader.getConfigByBaseUrl(baseUrl);
+            } catch (Exception e) {
+                return;
+            }
+            if (config == null || !config.isOntoPortal()) return;
+
+            Object collection = response.getResponseBody().get("collection");
+            if (!(collection instanceof List)) return;
+
+            for (Object itemObj : (List<?>) collection) {
+                if (!(itemObj instanceof Map)) continue;
+                @SuppressWarnings("unchecked")
+                Map<String, Object> item = (Map<String, Object>) itemObj;
+
+                Object prefLabel = item.get("prefLabel");
+                if (prefLabel instanceof Map<?, ?> map && !map.isEmpty()) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> byLang = (Map<String, Object>) map;
+                    item.put("prefLabelMap", new LinkedHashMap<>(byLang));
+                    String picked = pickLabel(byLang, query, requestedLangs);
+                    if (picked != null) {
+                        item.put("prefLabel", picked);
+                    }
+                }
+            }
+        });
+        return data;
     }
 
     private AggregatedApiResponse normalizeMultilingualLabels(AggregatedApiResponse data, String query, String langParam) {
