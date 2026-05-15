@@ -33,7 +33,7 @@ public class ArtefactsController {
     @SecurityRequirement(name = "BearerAuth")
     @Parameter(name = "lang", hidden = true)
     public Object getArtefacts(
-            @Parameter(description = "Choose one or more OntoPortal sources to search (comma-separated). Use 'ontoportal' to search all portals at once. Available: agroportal, earthportal, biodivportal, ecoportal, lovportal, ontoportal-astro.", example = "ontoportal")
+            @Parameter(description = "Which source to query. Pass a single source (e.g. agroportal), several separated by commas (e.g. agroportal,ecoportal), or ontoportal to query all OntoPortal sources at once. Available sources: agroportal, earthportal, biodivportal, ecoportal, lovportal, ontoportal-astro.", example = "ontoportal")
             @RequestParam String database,
             @ParameterObject CommonRequestParams params,
             @Parameter(description = "Collection id to browse terminologies in", hidden = true)
@@ -49,7 +49,7 @@ public class ArtefactsController {
     public Object getArtefact(
             @Parameter(description = "Acronym of the artefact (e.g. GEMET, ACTRIS, AGROVOC)", example = "GEMET")
             @PathVariable("id") String id,
-            @Parameter(description = "Choose one or more OntoPortal sources to search (comma-separated). Use 'ontoportal' to search all portals at once. Available: agroportal, earthportal, biodivportal, ecoportal, lovportal, ontoportal-astro.", example = "ontoportal")
+            @Parameter(description = "Which source to query. Pass a single source (e.g. agroportal), several separated by commas (e.g. agroportal,ecoportal), or ontoportal to query all OntoPortal sources at once. Available sources: agroportal, earthportal, biodivportal, ecoportal, lovportal, ontoportal-astro.", example = "ontoportal")
             @RequestParam String database,
             @Parameter(description = "Transform the response result to a specific schema")
             @RequestParam(required = false) TargetDbSchema targetDbSchema) {
