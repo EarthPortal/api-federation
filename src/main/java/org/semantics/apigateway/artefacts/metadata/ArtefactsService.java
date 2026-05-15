@@ -91,11 +91,16 @@ public class ArtefactsService extends AbstractEndpointService {
         if (wanted.isEmpty()) return data;
 
         List<Map<String, Object>> filtered = data.getCollection().stream()
-                .filter(item -> itemMatchesCategories(item, wanted))
+                .filter(item -> !isOntoPortalItem(item) || itemMatchesCategories(item, wanted))
                 .collect(Collectors.toList());
         data.setCollection(filtered);
         data.setTotalCount(filtered.size());
         return data;
+    }
+
+    private boolean isOntoPortalItem(Map<String, Object> item) {
+        Object backendType = item.get("backend_type");
+        return backendType != null && "ontoportal".equalsIgnoreCase(backendType.toString());
     }
 
     @SuppressWarnings("unchecked")
