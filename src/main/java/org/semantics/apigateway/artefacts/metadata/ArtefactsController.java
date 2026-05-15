@@ -8,7 +8,6 @@ import org.semantics.apigateway.model.CommonRequestParams;
 import org.semantics.apigateway.model.TargetDbSchema;
 import org.semantics.apigateway.model.user.User;
 import org.semantics.apigateway.service.auth.AuthService;
-import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.concurrent.ExecutionException;
@@ -31,15 +30,19 @@ public class ArtefactsController {
     @GetMapping("/artefacts")
     @Operation(summary = "Get information about all semantic artefacts.")
     @SecurityRequirement(name = "BearerAuth")
-    @Parameter(name = "lang", hidden = true)
     public Object getArtefacts(
             @Parameter(description = "Which source to query. Pass a single source (e.g. agroportal), several separated by commas (e.g. agroportal,ecoportal), or ontoportal to query all OntoPortal sources at once. Available sources: agroportal, earthportal, biodivportal, ecoportal, lovportal, ontoportal-astro.", example = "ontoportal")
             @RequestParam String database,
-            @ParameterObject CommonRequestParams params,
+            @Parameter(description = "Transform the response result to a specific schema")
+            @RequestParam(required = false) TargetDbSchema targetDbSchema,
+            @Parameter(description = "Filter results by ontology categories (comma-separated)")
+            @RequestParam(required = false, defaultValue = "") String categories,
             @Parameter(description = "Collection id to browse terminologies in", hidden = true)
-            @RequestParam(required = false)
-            String collectionId
+            @RequestParam(required = false) String collectionId
     ) throws ExecutionException, InterruptedException {
+        CommonRequestParams params = new CommonRequestParams();
+        params.setTargetDbSchema(targetDbSchema);
+        params.setCategories(categories);
         User user = authService.tryGetCurrentUser();
         return this.artefactsService.getArtefacts(database, params, collectionId, user, null);
     }
