@@ -3,10 +3,12 @@ package org.semantics.apigateway.artefacts.search;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.semantics.apigateway.collections.CollectionService;
 import org.semantics.apigateway.collections.models.TerminologyCollection;
+import org.semantics.apigateway.config.DatabaseConfig;
 import org.semantics.apigateway.model.CommonRequestParams;
 import org.semantics.apigateway.model.RDFResource;
 import org.semantics.apigateway.model.TargetDbSchema;
 import org.semantics.apigateway.model.responses.AggregatedApiResponse;
+import org.semantics.apigateway.model.responses.ApiResponse;
 import org.semantics.apigateway.model.user.User;
 import org.semantics.apigateway.service.AbstractEndpointService;
 import org.semantics.apigateway.service.ApiAccessor;
@@ -19,10 +21,13 @@ import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.net.URL;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -72,6 +77,7 @@ public class SearchService extends AbstractEndpointService {
             return accessor.get(query)
                     .thenApply(data -> this.transformApiResponses(data, endpoint))
                     .thenApply(transformedData -> flattenResponseList(transformedData, params, collection))
+                    .thenApply(data -> normalizeMultilingualLabels(data, query, params.getLang()))
                     .thenApply(data -> filterOutByCollection(collection, data))
                     .thenApply(this::enrichWithCategories)
                     .thenApply(this::deduplicateResults)
@@ -84,6 +90,86 @@ public class SearchService extends AbstractEndpointService {
             logger.error(e.getMessage(), e);
             return null;
         }
+    }
+
+    private AggregatedApiResponse normalizeMultilingualLabels(AggregatedApiResponse data, String query, String langParam) {
+        boolean multiLang = isMultiLang(langParam);
+        List<String> requestedLangs = parseLangs(langParam);
+
+        for (Map<String, Object> item : data.getCollection()) {
+            Object byLangRaw = item.get("labelByLang");
+            boolean hasByLangMap = byLangRaw instanceof Map && !((Map<?, ?>) byLangRaw).isEmpty();
+
+            if (multiLang && hasByLangMap) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> byLang = (Map<String, Object>) byLangRaw;
+                String picked = pickLabel(byLang, query, requestedLangs);
+                if (picked != null) {
+                    item.put("label", picked);
+                }
+            } else {
+                item.remove("labelByLang");
+            }
+        }
+        return data;
+    }
+
+    private boolean isMultiLang(String lang) {
+        if (lang == null || lang.isEmpty()) return false;
+        return lang.contains(",") || lang.equalsIgnoreCase("all");
+    }
+
+    private List<String> parseLangs(String langParam) {
+        if (langParam == null || langParam.isEmpty() || langParam.equalsIgnoreCase("all")) {
+            return Collections.emptyList();
+        }
+        return Arrays.stream(langParam.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toList());
+    }
+
+    private String pickLabel(Map<String, Object> byLang, String query, List<String> requestedLangs) {
+        String qNorm = query == null ? "" : query.toLowerCase();
+
+        // 1. langue dont la valeur contient la query
+        if (!qNorm.isEmpty()) {
+            for (String lang : requestedLangs) {
+                String v = firstString(byLang.get(lang));
+                if (v != null && v.toLowerCase().contains(qNorm)) {
+                    return v;
+                }
+            }
+        }
+
+        // 2. 1ère langue demandée présente
+        for (String lang : requestedLangs) {
+            String v = firstString(byLang.get(lang));
+            if (v != null) return v;
+        }
+
+        // 3. fallback 'none' (littéraux sans @lang tag)
+        String noneVal = firstString(byLang.get("none"));
+        if (noneVal != null) return noneVal;
+
+        // 4. n'importe quelle valeur non-vide
+        return byLang.values().stream()
+                .map(this::firstString)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private String firstString(Object v) {
+        if (v == null) return null;
+        if (v instanceof String s) {
+            return s.isEmpty() ? null : s;
+        }
+        if (v instanceof List<?> list && !list.isEmpty()) {
+            Object first = list.get(0);
+            return first == null ? null : first.toString();
+        }
+        return null;
     }
 
     private AggregatedApiResponse enrichWithCategories(AggregatedApiResponse data) {

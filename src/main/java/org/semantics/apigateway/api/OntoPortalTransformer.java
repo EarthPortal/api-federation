@@ -41,6 +41,11 @@ public class OntoPortalTransformer implements DatabaseTransformer {
             transformedItem.put("prefLabel", label);
         }
 
+        Object labelByLang = item.get("labelByLang");
+        if (labelByLang instanceof Map && !((Map<?, ?>) labelByLang).isEmpty()) {
+            transformedItem.put("labelByLang", labelByLang);
+        }
+
         Object synonyms = item.get("synonyms");
         if (synonyms != null && !(synonyms instanceof List && ((List<?>) synonyms).isEmpty())) {
             transformedItem.put("synonym", synonyms);
