@@ -52,7 +52,7 @@ models:
     keywords: keywords
     landingPage: homepage
     language: naturalLanguage
-    subject: hasDomain
+    subject: ontology->hasDomain
     accrualMethod: accrualMethod
     accrualPeriodicity: accrualPeriodicity
     bibliographicCitation: publication
