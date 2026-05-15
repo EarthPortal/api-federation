@@ -31,6 +31,7 @@ public class ArtefactsController {
     @GetMapping("/artefacts")
     @Operation(summary = "Get information about all semantic artefacts.")
     @SecurityRequirement(name = "BearerAuth")
+    @Parameter(name = "lang", hidden = true)
     public Object getArtefacts(
             @Parameter(description = "Choose one or more OntoPortal sources to search (comma-separated). Use 'ontoportal' to search all portals at once. Available: agroportal, earthportal, biodivportal, ecoportal, lovportal, ontoportal-astro.", example = "ontoportal")
             @RequestParam String database,
