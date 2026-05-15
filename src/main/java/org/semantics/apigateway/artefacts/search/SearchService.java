@@ -174,6 +174,7 @@ public class SearchService extends AbstractEndpointService {
 
     private AggregatedApiResponse enrichWithCategories(AggregatedApiResponse data) {
         for (Map<String, Object> item : data.getCollection()) {
+            if (!isOntoPortalItem(item)) continue;
             Object portal = item.get("source_name");
             Object ontology = item.get("ontology");
             if (portal == null || ontology == null) continue;
@@ -182,6 +183,11 @@ public class SearchService extends AbstractEndpointService {
             item.put("categories", categories);
         }
         return data;
+    }
+
+    private boolean isOntoPortalItem(Map<String, Object> item) {
+        Object backendType = item.get("backend_type");
+        return backendType != null && "ontoportal".equalsIgnoreCase(backendType.toString());
     }
 
     private String extractAcronym(String ontology) {
@@ -199,7 +205,7 @@ public class SearchService extends AbstractEndpointService {
         if (wanted.isEmpty()) return data;
 
         List<Map<String, Object>> filtered = data.getCollection().stream()
-                .filter(item -> itemMatchesCategories(item, wanted))
+                .filter(item -> !isOntoPortalItem(item) || itemMatchesCategories(item, wanted))
                 .collect(Collectors.toList());
         data.setCollection(filtered);
         data.setTotalCount(filtered.size());
