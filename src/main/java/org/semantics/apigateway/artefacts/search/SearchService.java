@@ -176,9 +176,20 @@ public class SearchService extends AbstractEndpointService {
     private String pickLabel(Map<String, Object> byLang, String query, List<String> requestedLangs) {
         String qNorm = query == null ? "" : query.toLowerCase();
 
+        // lang=all → requestedLangs est vide (cf. parseLangs) : on déploie sur
+        // toutes les clés disponibles avec 'en' en tête pour un fallback raisonnable
+        List<String> langs = requestedLangs;
+        if (langs.isEmpty() && !byLang.isEmpty()) {
+            langs = new java.util.ArrayList<>();
+            if (byLang.containsKey("en")) langs.add("en");
+            for (String k : byLang.keySet()) {
+                if (!"en".equals(k) && !"none".equals(k)) langs.add(k);
+            }
+        }
+
         // 1. langue dont la valeur contient la query
         if (!qNorm.isEmpty()) {
-            for (String lang : requestedLangs) {
+            for (String lang : langs) {
                 String v = firstString(byLang.get(lang));
                 if (v != null && v.toLowerCase().contains(qNorm)) {
                     return v;
@@ -187,7 +198,7 @@ public class SearchService extends AbstractEndpointService {
         }
 
         // 2. 1ère langue demandée présente
-        for (String lang : requestedLangs) {
+        for (String lang : langs) {
             String v = firstString(byLang.get(lang));
             if (v != null) return v;
         }
