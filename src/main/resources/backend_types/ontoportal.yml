@@ -53,6 +53,7 @@ models:
     landingPage: homepage
     language: naturalLanguage
     subject: ontology->hasDomain
+    pullLocation: pullLocation
     accrualMethod: accrualMethod
     accrualPeriodicity: accrualPeriodicity
     bibliographicCitation: publication
@@ -97,7 +98,7 @@ endpoints:
       <<: *searchResult
 
   resources:
-    path: /submissions?apikey=%s&display_links=true&display_context=false&display=ontology,description,URI,released,modificationDate,alternative,version,status,versionIRI,hasLicense,contact,hasCreator,identifier,keyword,naturalLanguage,publisher,homepage,hasDomain,accrualMethod,accrualPeriodicity,publication,hasContributor,coverage,hasFormat,copyrightHolder,competencyQuestion,wasGeneratedBy,includedInDataCatalog,ontologyRelatedTo,usedOntologyEngineeringTool,keywords,obsolete&lang=en
+    path: /submissions?apikey=%s&display_links=true&display_context=false&display=ontology,description,URI,released,modificationDate,alternative,version,status,versionIRI,hasLicense,contact,hasCreator,identifier,keyword,naturalLanguage,publisher,homepage,hasDomain,accrualMethod,accrualPeriodicity,publication,hasContributor,coverage,hasFormat,copyrightHolder,competencyQuestion,wasGeneratedBy,includedInDataCatalog,ontologyRelatedTo,usedOntologyEngineeringTool,keywords,obsolete,pullLocation&lang=en
     responseMapping:
       nestedJson: collection
       <<: *artefact
