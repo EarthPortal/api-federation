@@ -26,7 +26,7 @@ public class ArtefactsDeduplicationService {
                 .collect(Collectors.toSet());
     }
 
-    //methode principale
+    //main methode
     public List<Map<String, Object>> deduplicate(List<Map<String, Object>> results) {
         if (results == null || results.isEmpty()) {
             return results;
@@ -46,7 +46,7 @@ public class ArtefactsDeduplicationService {
             }
         }
 
-        //2 groupe by acronym
+        //2 group by acronym
         Map<String, List<Map<String, Object>>> groups = new LinkedHashMap<>();
         for (Map<String, Object> item : ontoportalItems) {
             String key = buildKey(item);
