@@ -72,23 +72,52 @@ public class SearchLocalIndexerService {
 
         List<Map<String, Object>> localIndexedResult = localIndexSearch(query, logger, index, INDEXED_FIELD);
 
-        List<Map<String, Object>> ranked = localIndexedResult.stream().map(x ->
-                combinedResults.stream().filter(y -> y.get("iri").equals(x.get("iri")) && y.get("backend_type").equals(x.get("backend_type")))
-                .findFirst().orElse(null))
+        List<Map<String, Object>> ranked = localIndexedResult.stream().map(x -> {
+                    Map<String, Object> original = combinedResults.stream()
+                            .filter(y -> Objects.equals(y.get("iri"), x.get("iri"))
+                                    && Objects.equals(y.get("backend_type"), x.get("backend_type"))
+                                    && Objects.equals(y.get("ontology"), x.get("ontology")))
+                            .findFirst().orElse(null);
+                    if (original != null && x.get("score") != null) {
+                        original.put("score", x.get("score"));
+                    }
+                    return original;
+                })
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
 
         Set<String> rankedKeys = ranked.stream()
-                .map(item -> item.get("iri") + "|" + item.get("backend_type"))
+                .map(item -> item.get("iri") + "|" + item.get("backend_type") + "|" + item.get("ontology"))
                 .collect(Collectors.toSet());
 
         List<Map<String, Object>> leftovers = combinedResults.stream()
-                .filter(item -> !rankedKeys.contains(item.get("iri") + "|" + item.get("backend_type")))
+                .filter(item -> !rankedKeys.contains(item.get("iri") + "|" + item.get("backend_type") + "|" + item.get("ontology")))
+                .peek(item -> item.put("score", 0.0f))
                 .collect(Collectors.toList());
 
         List<Map<String, Object>> merged = new ArrayList<>(ranked);
         merged.addAll(leftovers);
+
+        normalizeScores(merged);
+
         return merged;
+    }
+
+    private static void normalizeScores(List<Map<String, Object>> items) {
+        float maxScore = (float) items.stream()
+                .filter(item -> item.get("score") != null)
+                .mapToDouble(item -> ((Number) item.get("score")).floatValue())
+                .max()
+                .orElse(0.0);
+
+        if (maxScore <= 0) return;
+
+        for (Map<String, Object> item : items) {
+            Object s = item.get("score");
+            if (s != null) {
+                item.put("score", ((Number) s).floatValue() / maxScore);
+            }
+        }
     }
 
     private static List<Map<String, Object>> localIndexSearch(String query, Logger logger, Directory index, String field) throws IOException {
@@ -109,6 +138,7 @@ public class SearchLocalIndexerService {
             Document foundDoc = searcher.doc(scoreDoc.doc);
             Map<String, Object> newMap = new HashMap<>();
             foundDoc.forEach(r -> newMap.put(r.name(), r.stringValue()));
+            newMap.put("score", scoreDoc.score);
             newResults.add(newMap);
             logger.info("Score of: {} is {}", newMap.get("label"), scoreDoc.score);
         }
