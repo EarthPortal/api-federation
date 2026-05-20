@@ -1,45 +1,33 @@
 package org.semantics.apigateway.artefacts.metadata;
 
-import org.semantics.apigateway.config.DatabaseConfig;
-import org.semantics.apigateway.model.BackendType;
-import org.semantics.apigateway.service.configuration.ConfigurationLoader;
+import org.semantics.apigateway.util.OntoPortalUtil;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 public class ArtefactsDeduplicationService {
 
-    private final ConfigurationLoader configurationLoader;
+    private final OntoPortalUtil ontoPortalUtil;
 
-    public ArtefactsDeduplicationService(ConfigurationLoader configurationLoader) {
-        this.configurationLoader = configurationLoader;
+    public ArtefactsDeduplicationService(OntoPortalUtil ontoPortalUtil) {
+        this.ontoPortalUtil = ontoPortalUtil;
     }
 
-    private Set<String> ontoPortalPortals() {
-        return configurationLoader.getDatabaseConfigs().stream()
-                .filter(DatabaseConfig::isOntoPortal)
-                .map(DatabaseConfig::getName)
-                .filter(Objects::nonNull)
-                .map(String::toLowerCase)
-                .collect(Collectors.toSet());
-    }
-
-    //main methode
+    //main method
     public List<Map<String, Object>> deduplicate(List<Map<String, Object>> results) {
         if (results == null || results.isEmpty()) {
             return results;
         }
 
-        Set<String> portals = ontoPortalPortals();
+        Set<String> portals = ontoPortalUtil.getOntoPortalPortals();
 
         List<Map<String, Object>> ontoportalItems = new ArrayList<>();
         List<Map<String, Object>> otherItems = new ArrayList<>();
 
-        //1
+        //1 split items by backend type (OntoPortal vs others)
         for (Map<String, Object> item : results) {
-            if (isOntoportal(item)) {
+            if (ontoPortalUtil.isOntoPortalItem(item)) {
                 ontoportalItems.add(item);
             } else {
                 otherItems.add(item);
@@ -57,7 +45,7 @@ public class ArtefactsDeduplicationService {
             groups.computeIfAbsent(key, k -> new ArrayList<>()).add(item);
         }
 
-        //3 every group -> chose canonical + found in
+        //3 for each group -> pick canonical + build found_in
         List<Map<String, Object>> deduped = new ArrayList<>();
         for (List<Map<String, Object>> group : groups.values()) {
             Map<String, Object> source = group.size() == 1 ? group.get(0) : pickCanonical(group, portals);
@@ -140,10 +128,5 @@ public class ArtefactsDeduplicationService {
         Object acronym = item.get("short_form");
         if (acronym == null) return null;
         return acronym.toString().toUpperCase();
-    }
-
-    private boolean isOntoportal(Map<String, Object> item) {
-        Object backendType = item.get("backend_type");
-        return backendType != null && BackendType.ontoportal.toString().equalsIgnoreCase(backendType.toString());
     }
 }

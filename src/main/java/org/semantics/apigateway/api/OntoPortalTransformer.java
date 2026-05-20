@@ -2,6 +2,7 @@ package org.semantics.apigateway.api;
 
 import org.semantics.apigateway.config.ResponseMapping;
 import org.semantics.apigateway.service.JsonLdTransform;
+import org.semantics.apigateway.util.OntoPortalUtil;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -12,12 +13,13 @@ public class OntoPortalTransformer implements DatabaseTransformer {
     private final Map<String, Object> contextConfig;
     private final JsonLdTransform jsonLdTransform;
     private final String lang;
+    private final OntoPortalUtil ontoPortalUtil;
 
-    public OntoPortalTransformer(Map<String, Object> contextConfig, JsonLdTransform jsonLdTransform, String lang) {
+    public OntoPortalTransformer(Map<String, Object> contextConfig, JsonLdTransform jsonLdTransform, String lang, OntoPortalUtil ontoPortalUtil) {
         this.contextConfig = contextConfig;
         this.jsonLdTransform = jsonLdTransform;
         this.lang = lang;
-
+        this.ontoPortalUtil = ontoPortalUtil;
     }
 
     @Override
@@ -102,7 +104,7 @@ public class OntoPortalTransformer implements DatabaseTransformer {
         }
 
         // build links  only for OntoPortal backends
-        if ("ontoportal".equalsIgnoreCase(backendType)
+        if (ontoPortalUtil.isOntoPortalItem(item)
                 && source != null && ontology != null && iri != null) {
             String encodedIri = URLEncoder.encode(iri, StandardCharsets.UTF_8);
             String ontologyAcronym = ontology.contains("/") ? ontology.substring(ontology.lastIndexOf('/') + 1) : ontology;
@@ -133,7 +135,7 @@ public class OntoPortalTransformer implements DatabaseTransformer {
         }
 
         // item level @context generated from annotations
-        if ("ontoportal".equalsIgnoreCase(backendType)) {
+        if (ontoPortalUtil.isOntoPortalItem(item)) {
             Map<String, Object> context = buildItemContext();
             transformedItem.put("@context", context);
         }
