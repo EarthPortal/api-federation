@@ -176,8 +176,6 @@ public class SearchService extends AbstractEndpointService {
     private String pickLabel(Map<String, Object> byLang, String query, List<String> requestedLangs) {
         String qNorm = query == null ? "" : query.toLowerCase();
 
-        // lang=all → requestedLangs est vide (cf. parseLangs) : on déploie sur
-        // toutes les clés disponibles avec 'en' en tête pour un fallback raisonnable
         List<String> langs = requestedLangs;
         if (langs.isEmpty() && !byLang.isEmpty()) {
             langs = new java.util.ArrayList<>();
@@ -187,7 +185,7 @@ public class SearchService extends AbstractEndpointService {
             }
         }
 
-        // 1. langue dont la valeur contient la query
+        // 1 lang whose value contains the query
         if (!qNorm.isEmpty()) {
             for (String lang : langs) {
                 String v = firstString(byLang.get(lang));
@@ -197,17 +195,17 @@ public class SearchService extends AbstractEndpointService {
             }
         }
 
-        // 2. 1ère langue demandée présente
+        // 2 first requested lang that has a value
         for (String lang : langs) {
             String v = firstString(byLang.get(lang));
             if (v != null) return v;
         }
 
-        // 3. fallback 'none' (littéraux sans @lang tag)
+        // 3 fallback to none
         String noneVal = firstString(byLang.get("none"));
         if (noneVal != null) return noneVal;
 
-        // 4. n'importe quelle valeur non-vide
+        // 4 any non empty value
         return byLang.values().stream()
                 .map(this::firstString)
                 .filter(Objects::nonNull)

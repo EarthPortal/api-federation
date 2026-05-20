@@ -78,8 +78,8 @@ public class ArtefactsService extends AbstractEndpointService {
     private AggregatedApiResponse adjustSingleOrList(AggregatedApiResponse data) {
         int size = data.getCollection() != null ? data.getCollection().size() : 0;
         data.setTotalCount(size);
-        // 1 seul item après dédup → réponse single object (cas classique)
-        // plusieurs items (ex. OntoPortal canonical + non-OntoPortal) → liste
+        // 1 item after dedup
+        // multiple items (ontoPortal canonical + non ontoPortal) → list
         data.setList(size != 1);
         return data;
     }
