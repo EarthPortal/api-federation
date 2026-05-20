@@ -1,6 +1,7 @@
 package org.semantics.apigateway.artefacts.search;
 
 import org.apache.lucene.queryparser.classic.ParseException;
+import org.semantics.apigateway.util.OntoPortalUtil;
 import org.semantics.apigateway.collections.CollectionService;
 import org.semantics.apigateway.collections.models.TerminologyCollection;
 import org.semantics.apigateway.config.DatabaseConfig;
@@ -39,16 +40,18 @@ public class SearchService extends AbstractEndpointService {
     private final SearchLocalIndexerService localIndexer;
     private final SearchDeduplicationService deduplicationService;
     private final OntologyCategoryCache categoryCache;
+    private final OntoPortalUtil ontoPortalUtil;
 
     private static final Logger logger = LoggerFactory.getLogger(SearchService.class);
     private final CollectionService collectionService;
 
-    public SearchService(ConfigurationLoader configurationLoader, SearchLocalIndexerService localIndexer, CacheManager cacheManager, JsonLdTransform jsonLdTransform, ResponseTransformerService responseTransformerService, CollectionService collectionService, SearchDeduplicationService deduplicationService, OntologyCategoryCache categoryCache) {
+    public SearchService(ConfigurationLoader configurationLoader, SearchLocalIndexerService localIndexer, CacheManager cacheManager, JsonLdTransform jsonLdTransform, ResponseTransformerService responseTransformerService, CollectionService collectionService, SearchDeduplicationService deduplicationService, OntologyCategoryCache categoryCache, OntoPortalUtil ontoPortalUtil) {
         super(configurationLoader, cacheManager, jsonLdTransform, responseTransformerService, RDFResource.class);
         this.localIndexer = localIndexer;
         this.collectionService = collectionService;
         this.deduplicationService = deduplicationService;
         this.categoryCache = categoryCache;
+        this.ontoPortalUtil = ontoPortalUtil;
     }
 
     public AggregatedApiResponse performSearch(String query, String database, String targetDbSchema, boolean showResponseConfiguration) {
@@ -227,7 +230,7 @@ public class SearchService extends AbstractEndpointService {
 
     private AggregatedApiResponse enrichWithCategories(AggregatedApiResponse data) {
         for (Map<String, Object> item : data.getCollection()) {
-            if (!isOntoPortalItem(item)) continue;
+            if (!ontoPortalUtil.isOntoPortalItem(item)) continue;
             Object portal = item.get("source_name");
             Object ontology = item.get("ontology");
             if (portal == null || ontology == null) continue;
@@ -236,11 +239,6 @@ public class SearchService extends AbstractEndpointService {
             item.put("categories", categories);
         }
         return data;
-    }
-
-    private boolean isOntoPortalItem(Map<String, Object> item) {
-        Object backendType = item.get("backend_type");
-        return backendType != null && "ontoportal".equalsIgnoreCase(backendType.toString());
     }
 
     private String extractAcronym(String ontology) {
@@ -258,7 +256,7 @@ public class SearchService extends AbstractEndpointService {
         if (wanted.isEmpty()) return data;
 
         List<Map<String, Object>> filtered = data.getCollection().stream()
-                .filter(item -> !isOntoPortalItem(item) || itemMatchesCategories(item, wanted))
+                .filter(item -> !ontoPortalUtil.isOntoPortalItem(item) || itemMatchesCategories(item, wanted))
                 .collect(Collectors.toList());
         data.setCollection(filtered);
         data.setTotalCount(filtered.size());

@@ -13,6 +13,7 @@ import org.semantics.apigateway.service.ApiAccessor;
 import org.semantics.apigateway.service.JsonLdTransform;
 import org.semantics.apigateway.service.ResponseTransformerService;
 import org.semantics.apigateway.service.configuration.ConfigurationLoader;
+import org.semantics.apigateway.util.OntoPortalUtil;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 
@@ -32,12 +33,14 @@ public class ArtefactsService extends AbstractEndpointService {
     private final CollectionService collectionService;
     private final SearchLocalIndexerService localIndexer;
     private final ArtefactsDeduplicationService deduplicationService;
+    private final OntoPortalUtil ontoPortalUtil;
 
-    public ArtefactsService(ConfigurationLoader configurationLoader, CacheManager cacheManager, JsonLdTransform transform, ResponseTransformerService responseTransformerService, CollectionService collectionService, SearchLocalIndexerService localIndexer, ArtefactsDeduplicationService deduplicationService) {
+    public ArtefactsService(ConfigurationLoader configurationLoader, CacheManager cacheManager, JsonLdTransform transform, ResponseTransformerService responseTransformerService, CollectionService collectionService, SearchLocalIndexerService localIndexer, ArtefactsDeduplicationService deduplicationService, OntoPortalUtil ontoPortalUtil) {
         super(configurationLoader, cacheManager, transform, responseTransformerService, SemanticArtefact.class);
         this.collectionService = collectionService;
         this.localIndexer = localIndexer;
         this.deduplicationService = deduplicationService;
+        this.ontoPortalUtil = ontoPortalUtil;
     }
 
 
@@ -124,16 +127,11 @@ public class ArtefactsService extends AbstractEndpointService {
         if (wanted.isEmpty()) return data;
 
         List<Map<String, Object>> filtered = data.getCollection().stream()
-                .filter(item -> !isOntoPortalItem(item) || itemMatchesCategories(item, wanted))
+                .filter(item -> !ontoPortalUtil.isOntoPortalItem(item) || itemMatchesCategories(item, wanted))
                 .collect(Collectors.toList());
         data.setCollection(filtered);
         data.setTotalCount(filtered.size());
         return data;
-    }
-
-    private boolean isOntoPortalItem(Map<String, Object> item) {
-        Object backendType = item.get("backend_type");
-        return backendType != null && "ontoportal".equalsIgnoreCase(backendType.toString());
     }
 
     @SuppressWarnings("unchecked")
