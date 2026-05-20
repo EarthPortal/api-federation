@@ -88,6 +88,11 @@ public class OntoPortalTransformer implements DatabaseTransformer {
             transformedItem.put("found_in", foundIn);
         }
 
+        Object score = item.get("score");
+        if (score != null) {
+            transformedItem.put("score", score);
+        }
+
             if (iri != null) {
             transformedItem.put("@id", iri);
         }
