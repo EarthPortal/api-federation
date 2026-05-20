@@ -400,7 +400,7 @@ public abstract class AbstractEndpointService {
     public TransformedApiResponse selectResultsByDatabase(List<TransformedApiResponse> apiResponse, String
             database) {
         TransformedApiResponse a = null;
-        // TODO: update this to merge the results instead of returning only one the first one
+        // TODO: update this to merge the results instead of returning only one the first one  --> solve this issue
 
         if (database != null) {
             a = apiResponse.stream()
