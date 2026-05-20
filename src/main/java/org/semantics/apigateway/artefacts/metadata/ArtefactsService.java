@@ -31,11 +31,13 @@ public class ArtefactsService extends AbstractEndpointService {
 
     private final CollectionService collectionService;
     private final SearchLocalIndexerService localIndexer;
+    private final ArtefactsDeduplicationService deduplicationService;
 
-    public ArtefactsService(ConfigurationLoader configurationLoader, CacheManager cacheManager, JsonLdTransform transform, ResponseTransformerService responseTransformerService, CollectionService collectionService, SearchLocalIndexerService localIndexer) {
+    public ArtefactsService(ConfigurationLoader configurationLoader, CacheManager cacheManager, JsonLdTransform transform, ResponseTransformerService responseTransformerService, CollectionService collectionService, SearchLocalIndexerService localIndexer, ArtefactsDeduplicationService deduplicationService) {
         super(configurationLoader, cacheManager, transform, responseTransformerService, SemanticArtefact.class);
         this.collectionService = collectionService;
         this.localIndexer = localIndexer;
+        this.deduplicationService = deduplicationService;
     }
 
 
@@ -45,6 +47,7 @@ public class ArtefactsService extends AbstractEndpointService {
             return
                     findAllArtefacts(database, params, collectionId, currentUser, accessor)
                             .thenApply(data -> filterByCategories(data, params.getCategories()))
+                            .thenApply(this::deduplicateArtefacts)
                             .thenApply(data -> transformJsonLd(data, params))
                             .thenApply(data -> transformForTargetDbSchema(data, params.getTargetDbSchema(), endpoint)).get();
         } catch (InterruptedException | ExecutionException e) {
@@ -55,7 +58,30 @@ public class ArtefactsService extends AbstractEndpointService {
 
 
     public Object getArtefact(String database, String id, CommonRequestParams params, ApiAccessor accessor) {
-        return findUri(database, id, null, "resource_details", params, accessor);
+        String endpoint = "resource_details";
+        accessor = initAccessor(database, endpoint, accessor);
+        try {
+            return accessor.get(id)
+                    .thenApply(data -> this.transformApiResponses(data, endpoint))
+                    .thenApply(transformedData -> flattenResponseList(transformedData, params, null))
+                    .thenApply(this::deduplicateArtefacts)
+                    .thenApply(this::adjustSingleOrList)
+                    .thenApply(x -> transformJsonLd(x, params))
+                    .thenApply(data -> transformForTargetDbSchema(data, params.getTargetDbSchema(), endpoint, false))
+                    .get();
+        } catch (InterruptedException | ExecutionException e) {
+            logger.error(e.getMessage(), e);
+            return null;
+        }
+    }
+
+    private AggregatedApiResponse adjustSingleOrList(AggregatedApiResponse data) {
+        int size = data.getCollection() != null ? data.getCollection().size() : 0;
+        data.setTotalCount(size);
+        // 1 seul item après dédup → réponse single object (cas classique)
+        // plusieurs items (ex. OntoPortal canonical + non-OntoPortal) → liste
+        data.setList(size != 1);
+        return data;
     }
 
 
@@ -64,9 +90,16 @@ public class ArtefactsService extends AbstractEndpointService {
         return findAllArtefacts(database, params, null, null, accessor)
                 .thenApply(data -> filterOutByQuery(query, data))
                 .thenApply(data -> filterByCategories(data, params.getCategories()))
+                .thenApply(this::deduplicateArtefacts)
                 .thenApply(data -> reIndexResults(query, data))
                 .thenApply(x -> transformJsonLd(x, params))
                 .thenApply(data -> transformForTargetDbSchema(data, params.getTargetDbSchema(), endpoint));
+    }
+
+    private AggregatedApiResponse deduplicateArtefacts(AggregatedApiResponse data) {
+        data.setCollection(deduplicationService.deduplicate(data.getCollection()));
+        data.setTotalCount(data.getCollection().size());
+        return data;
     }
 
     private AggregatedApiResponse reIndexResults(String query, AggregatedApiResponse data) {
