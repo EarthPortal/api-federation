@@ -47,6 +47,13 @@ public class SemanticArtefact extends AggregatedResourceBody {
     @ContextUri("pav")
     private List<String> createdWith;
 
+    @ContextUri("base4nfdi")
+    private List<String> administeredBy;
+    @ContextUri("base4nfdi")
+    private List<String> group;
+    @ContextUri("base4nfdi")
+    private String pullLocation;
+
 
     //TODO use this instead of source in the future
     @ContextUri("schema")
