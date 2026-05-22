@@ -33,7 +33,7 @@ To set up the API-Federation, follow these steps:
    `cd api-federation`
 3. Run docker-compose to start the API Federation and its dependencies:
    `docker compose --profile all up --build`
-   The service will be accessible at `http://localhost:8080/api-federation` by default.
+   The service will be accessible at `http://localhost:8080/api-gateway` by default.
 
 ## Extensibility and Customization
 
