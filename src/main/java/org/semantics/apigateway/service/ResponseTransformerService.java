@@ -4,6 +4,7 @@ import lombok.Getter;
 import org.semantics.apigateway.api.*;
 import org.semantics.apigateway.config.DatabaseConfig;
 import org.semantics.apigateway.service.configuration.ConfigurationLoader;
+import org.semantics.apigateway.util.OntoPortalUtil;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -19,10 +20,12 @@ public class ResponseTransformerService {
 
   private final ConfigurationLoader configurationLoader;
   private final JsonLdTransform jsonLdTransform;
+  private final OntoPortalUtil ontoPortalUtil;
 
-  public ResponseTransformerService(ConfigurationLoader configurationLoader, JsonLdTransform jsonLdTransform) {
+  public ResponseTransformerService(ConfigurationLoader configurationLoader, JsonLdTransform jsonLdTransform, OntoPortalUtil ontoPortalUtil) {
     this.configurationLoader = configurationLoader;
     this.jsonLdTransform = jsonLdTransform;
+    this.ontoPortalUtil = ontoPortalUtil;
   }
   
   
@@ -60,7 +63,7 @@ public class ResponseTransformerService {
       }
       case "ontoportal":
         Map<String, Object> contextConfig = databaseConfig.getServiceConfig().getContext();
-        OntoPortalTransformer ontoPortalTransformer = new OntoPortalTransformer(contextConfig, jsonLdTransform, lang);
+        OntoPortalTransformer ontoPortalTransformer = new OntoPortalTransformer(contextConfig, jsonLdTransform, lang, ontoPortalUtil);
         List<Map<String, Object>> transformedResultsOntoPortal = originalResponse.stream()
                 .map(x -> ontoPortalTransformer.transformItem(x, databaseConfig.getResponseMapping(endpoint)))
                 .filter(Objects::nonNull)

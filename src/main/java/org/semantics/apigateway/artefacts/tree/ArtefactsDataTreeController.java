@@ -22,24 +22,24 @@ public class ArtefactsDataTreeController {
 
     @GetMapping(value = {"/resources/concepts/roots", "/resources/classes/roots"})
     @Operation(summary = "Get a list of all roots in an artefact.")
-    public Object getArtefactRoots(@PathVariable String id, @ParameterObject CommonRequestParams params) {
-        return this.artefactsService.getRoots(id, params, null);
+    public Object getArtefactRoots(@PathVariable String id, @RequestParam(required = false, defaultValue = "") String database, @ParameterObject CommonRequestParams params) {
+        return this.artefactsService.getRoots(database, id, params, null);
     }
 
     @GetMapping(value = {"/resources/classes/children", "/resources/concepts/children"})
     @Operation(summary = "Get a list of all children of a specific owl:Class or skos:Concept within an artefact.")
-    public Object getConceptChildren(@PathVariable String id, @RequestParam String uri, @ModelAttribute CommonRequestParams params,
+    public Object getConceptChildren(@PathVariable String id, @RequestParam String uri, @RequestParam(required = false, defaultValue = "") String database, @ModelAttribute CommonRequestParams params,
                                      @RequestParam(required = false, defaultValue = "1") Integer page) {
         uri = URLEncoder.encode(uri);
-        return this.artefactsService.getChildren(id, uri, params, page, null);
+        return this.artefactsService.getChildren(database, id, uri, params, page, null);
     }
 
 
 
     @GetMapping(value = {"/resources/classes/tree", "/resources/concepts/tree"})
     @Operation(summary = "Get a full tree of all children of a specific owl:Class or skos:Concept within an artefact.")
-    public Object getConceptFullTree(@PathVariable String id, @RequestParam String uri, @ModelAttribute CommonRequestParams params) {
+    public Object getConceptFullTree(@PathVariable String id, @RequestParam String uri, @RequestParam(required = false, defaultValue = "") String database, @ModelAttribute CommonRequestParams params) {
         uri = URLEncoder.encode(uri);
-        return this.artefactsService.getTree(id, uri, params, null);
+        return this.artefactsService.getTree(database, id, uri, params, null);
     }
 }
