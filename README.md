@@ -4,17 +4,15 @@ infrastructure.
 
 ## Overview
 
-The EarthPortal API Federated Service is an advanced, dynamic solution designed to perform federated calls across multiple Terminology Services (TS)
-within EarthPortal. It is particularly tailored for environments where integration and aggregation of diverse data sources are essential. The
-service offers search capabilities, enabling users to refine search results based on specific criteria, and supports responses in both JSON and
-JSON-LD formats.
+The EarthPortal API Federated Service is an advanced, dynamic solution designed to perform federated calls across OntoPortal-based platform
+within EarthPortal. It is based on the TS4NFDI api-gateway service, and is particularly tailored for environments where integration and aggregation of diverse data sources are essential. The service offers search capabilities, enabling users to refine search results based on specific criteria, and supports responses in both JSON and JSON-LD formats.
 
 A standout feature of this service is its dynamic nature, governed by a JSON configuration file. This design choice allows for easy extension and
 customization of the service to include new TS or modify existing configurations.
 
 ## Features
 
-- **Federated Search Across Multiple Terminology Services:** Seamlessly query multiple TS simultaneously and aggregate results into a unified format.
+- **Federated Search Across Multiple Terminology Services:** Seamlessly query multiple OntoPortal simultaneously and aggregate results into a unified format.
 - **Parametrisable Search Capabilities:** Filter and refine search results based on specific criteria, enhancing the search experience and relevance of results.
 - **Dynamic Configuration:** Utilize a JSON file to configure TS connections and response mappings, enabling easy addition or modification of terminology sources.
 - **Response Format Flexibility:** Choose between standard JSON and JSON-LD formats for search results, covering different use cases and requirements.
