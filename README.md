@@ -1,10 +1,16 @@
-# TS4NFDI Federated Service - API-Gateway
+# EarthPortal API Federated Service
+> Forked from [TS4NFDI api-gateway](https://github.com/ts4nfdi/api-gateway) — adapted for the EarthPortal ecosystem within the Data Terra research
+infrastructure.
 
 ## Overview
 
-The TS4NFDI Federated Service is an advanced, dynamic solution designed to perform federated calls across multiple Terminology Services (TS) within NFDI. It is particularly tailored for environments where integration and aggregation of diverse data sources are essential. The service offers search capabilities, enabling users to refine search results based on specific criteria, and supports responses in both JSON and JSON-LD formats.
+The EarthPortal API Federated Service is an advanced, dynamic solution designed to perform federated calls across multiple Terminology Services (TS)
+within EarthPortal. It is particularly tailored for environments where integration and aggregation of diverse data sources are essential. The
+service offers search capabilities, enabling users to refine search results based on specific criteria, and supports responses in both JSON and
+JSON-LD formats.
 
-A standout feature of this service is its dynamic nature, governed by a JSON configuration file. This design choice allows for easy extension and customization of the service to include new TS or modify existing configurations.
+A standout feature of this service is its dynamic nature, governed by a JSON configuration file. This design choice allows for easy extension and
+customization of the service to include new TS or modify existing configurations.
 
 ## Features
 
@@ -14,20 +20,20 @@ A standout feature of this service is its dynamic nature, governed by a JSON con
 - **Response Format Flexibility:** Choose between standard JSON and JSON-LD formats for search results, covering different use cases and requirements.
 - **Schema Transformation:** Convert search responses into specific TS output formats, facilitating integration with existing systems.
 
-  
-  ![api gateway diagram](./documentation/assets/architecture.png)
+
+![api gateway diagram](./documentation/assets/architecture.png)
 
 ## Installation
 
-To set up the API-Gateway, follow these steps:
+To set up the API-Federation, follow these steps:
 
 1. Clone the repository to your local machine:
-   `git clone https://github.com/ts4nfdi/api-gateway.git`
+   `git clone https://github.com/EarthPortal/api-federation.git`
 2. In your command line navigate to the project directory:
-   `cd api-gateway`
-3. Run docker-compose to start the API Gateway and its dependencies:
+   `cd api-federation`
+3. Run docker-compose to start the API Federation and its dependencies:
    `docker compose --profile all up --build`
-The service will be accessible at `http://localhost:8080/api-gateway` by default.
+   The service will be accessible at `http://localhost:8080/api-gateway` by default.
 
 ## Extensibility and Customization
 
@@ -35,13 +41,13 @@ The service's dynamic configuration approach allows for straightforward extensib
 
 #### Steps to Integrate a New TS Schema:
 
-1. **Add a new Mapping Configuration file:** Create a new YAML file in the `src/main/resources/backend_types` directory. This file should define the mapping between the new TS schema and the API Gateway schema. See the existing mapping files for examples of how to structure this file.
-2. **Add your database URL:** edit the `src/main/resources/databases.json` file to add the new TS database URL. This file contains the connection details for all the TS databases that the API Gateway will connect to.
+1. **Add a new Mapping Configuration file:** Create a new YAML file in the `src/main/resources/backend_types` directory. This file should define the mapping between the new TS schema and the API Federation schema. See the existing mapping files for examples of how to structure this file.
+2. **Add your database URL:** edit the `src/main/resources/databases.json` file to add the new TS database URL. This file contains the connection details for all the TS databases that the API Federation will connect to.
 
 
 ## Deployment Workflow
 
-The API Gateway project follows a branch-based deployment workflow to ensure stable and testable releases, see [Gitflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow). 
+The API Federation project follows a branch-based deployment workflow to ensure stable and testable releases, see [Gitflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow).
 
 ### Branch Overview
 - **feature** branches: Used for developing new features.
