@@ -20,9 +20,9 @@ federation to new sources OntoPortal or otherwise without touching the code.
 ## Features
 
 - **Federated Search Across Multiple Terminology Services:** Seamlessly query multiple TS simultaneously and aggregate results into a unified format.
-- **Deduplication across portals** — when the same artefact or concept is hosted by several OntoPortals, results are deduplicated so users see one consolidated entry.
-- **Configurable filtering** — refine queries by language, domain/category, and other portal-side filters. 
-- **Multiple response formats** — get results as plain JSON or JSON-LD, suitable for both web clients and semantic-web tooling.
+- **Deduplication across portals**: when the same artefact or concept is hosted by several OntoPortals, results are deduplicated so users see one consolidated entry.
+- **Configurable filtering**: refine queries by language, domain/category, and other portal-side filters. 
+- **Multiple response formats**: get results as plain JSON or JSON-LD, suitable for both web clients and semantic-web tooling.
 - **Dynamic Configuration:** Utilize a JSON file to configure TS connections and response mappings, enabling easy addition or modification of terminology sources.
 - **Schema Transformation:** Convert search responses into specific TS output formats, facilitating integration with existing systems.
 
