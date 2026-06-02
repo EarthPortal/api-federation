@@ -1,13 +1,10 @@
 # EarthPortal API Federated Service
-> This service is a fork of the **[TS4NFDI api-gateway](https://github.com/ts4nfdi/api-gateway)**
-developed by the TS4NFDI consortium. The federation engine, configuration model, and core
-architecture are based on their work. EarthPortal adapts and extends it for the needs of the
-Data Terra ecosystem.
+> Forked from [TS4NFDI api-gateway](https://github.com/ts4nfdi/api-gateway) and adapted for the EarthPortal ecosystem within the Data Terra research infrastructure.
 
 ## Overview
 
 The **EarthPortal API Federated Service** is the federation layer of the EarthPortal
-terminology platform. It performs federated calls across multiple terminology sources both **OntoPortal sources** (such as EarthPortal, BiodivPortal, AgroPortal) and **non-OntoPortal** services (e.g. NERC, OLS, or any other terminology backend
+terminology platform. It performs federated calls across multiple terminology sources both **OntoPortal** portals (such as EarthPortal, BiodivPortal, AgroPortal, ..) and **non-OntoPortal** services (e.g. NERC, OLS, or any other terminology backend
 described via a mapping file) and aggregates their results into a unified response.
 
 It is designed to give Earth & environmental science communities a single entry point to discover, search, and consume vocabularies hosted across heterogeneous terminology
@@ -20,14 +17,14 @@ federation to new sources OntoPortal or otherwise without touching the code.
 ## Features
 
 - **Federated Search Across Multiple Terminology Services:** Seamlessly query multiple TS simultaneously and aggregate results into a unified format.
-- **Deduplication across portals**: when the same artefact or concept is hosted by several OntoPortals, results are deduplicated so users see one consolidated entry.
-- **Configurable filtering**: refine queries by language, domain/category, and other portal-side filters. 
-- **Multiple response formats**: get results as plain JSON or JSON-LD, suitable for both web clients and semantic-web tooling.
+- **Deduplication across portals**: When the same artefact or concept is hosted by several OntoPortals, results are deduplicated so users see one consolidated entry.
+- **Configurable filtering**: Refine queries by language, domain/category, and other portal-side filters. 
+- **Multiple response formats**: Get results as plain JSON or JSON-LD, suitable for both web clients and semantic-web tooling.
 - **Dynamic Configuration:** Utilize a JSON file to configure TS connections and response mappings, enabling easy addition or modification of terminology sources.
 - **Schema Transformation:** Convert search responses into specific TS output formats, facilitating integration with existing systems.
 
 
-![api gateway diagram](./documentation/assets/architecture.png)
+![api federation diagram](./documentation/assets/architecture.png)
 
 ## Installation
 
