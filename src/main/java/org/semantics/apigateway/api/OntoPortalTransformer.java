@@ -76,7 +76,8 @@ public class OntoPortalTransformer implements DatabaseTransformer {
         }
 
         Object categories = item.get("categories");
-        if (categories instanceof List && !((List<?>) categories).isEmpty()) {
+
+        if (categories instanceof List && !((List<?>) categories).isEmpty() && "ontoportal".equalsIgnoreCase(backendType)) {
             transformedItem.put("categories", categories);
         } else {
             Object subject = item.get("subject");
@@ -134,13 +135,37 @@ public class OntoPortalTransformer implements DatabaseTransformer {
             transformedItem.put("links", links);
         }
 
-        // item level @context generated from annotations
-        if (ontoPortalUtil.isOntoPortalItem(item)) {
-            Map<String, Object> context = buildItemContext();
-            transformedItem.put("@context", context);
+        // build links for NERC backend
+        if ("nerc".equalsIgnoreCase(backendType) && iri != null) {
+            Map<String, Object> links = new LinkedHashMap<>();
+            links.put("self", iri + "?_profile=nvs&_mediatype=application/ld+json");
+            links.put("ui", iri);
+            links.put("ontology", deriveNercCollectionIri(iri));
+            transformedItem.put("links", links);
+
+            Object broader = item.get("broader");
+            transformedItem.put("parents", broader instanceof List ? broader : Collections.emptyList());
+
+            Object narrower = item.get("narrower");
+            transformedItem.put("children", narrower instanceof List ? narrower : Collections.emptyList());
+
         }
 
+        // item level @context generated from annotations
+        Map<String, Object> context = buildItemContext(transformedItem);
+        transformedItem.put("@context", context);
+
         return transformedItem;
+    }
+
+    private String deriveNercCollectionIri(String conceptIri) {
+        String trimmed = conceptIri.endsWith("/") ? conceptIri.substring(0, conceptIri.length() - 1) : conceptIri;
+        int lastSlash = trimmed.lastIndexOf('/');
+        return lastSlash > 0 ? trimmed.substring(0, lastSlash + 1) : conceptIri;
+    }
+
+    private boolean isOptionalContextField(String key) {
+        return "synonym".equals(key) || "definition".equals(key);
     }
 
     @Override
@@ -154,7 +179,7 @@ public class OntoPortalTransformer implements DatabaseTransformer {
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, Object> buildItemContext() {
+    private Map<String, Object> buildItemContext(Map<String, Object> transformedItem) {
         Map<String, Object> context = new LinkedHashMap<>();
 
         String vocab = contextConfig != null ? (String) contextConfig.get("vocab") : null;
@@ -174,6 +199,10 @@ public class OntoPortalTransformer implements DatabaseTransformer {
             for (Map.Entry<String, String> entry : fieldMappings.entrySet()) {
                 String ontoPortalKey = entry.getKey();
                 String javaFieldName = entry.getValue();
+
+                if (isOptionalContextField(ontoPortalKey) && !transformedItem.containsKey(ontoPortalKey)) {
+                    continue;
+                }
 
                 // check for override first
                 if (fieldOverrides != null && fieldOverrides.containsKey(ontoPortalKey)) {
