@@ -55,7 +55,7 @@ models:
     modified: modified
 endpoints:
   search:
-    path: /search/content?q=%s
+    path: /search/content?q=%s&pagesize=150
     responseMapping:
       nestedJson: "member"
       totalCount: totalItems

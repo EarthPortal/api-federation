@@ -40,17 +40,20 @@ public class SearchService extends AbstractEndpointService {
     private final SearchLocalIndexerService localIndexer;
     private final SearchDeduplicationService deduplicationService;
     private final OntologyCategoryCache categoryCache;
+    private final NercSparqlEnrichmentService nercSparqlEnrichmentService;
     private final OntoPortalUtil ontoPortalUtil;
 
     private static final Logger logger = LoggerFactory.getLogger(SearchService.class);
     private final CollectionService collectionService;
 
-    public SearchService(ConfigurationLoader configurationLoader, SearchLocalIndexerService localIndexer, CacheManager cacheManager, JsonLdTransform jsonLdTransform, ResponseTransformerService responseTransformerService, CollectionService collectionService, SearchDeduplicationService deduplicationService, OntologyCategoryCache categoryCache, OntoPortalUtil ontoPortalUtil) {
+
+    public SearchService(ConfigurationLoader configurationLoader, SearchLocalIndexerService localIndexer, CacheManager cacheManager, JsonLdTransform jsonLdTransform, ResponseTransformerService responseTransformerService, CollectionService collectionService, SearchDeduplicationService deduplicationService, OntologyCategoryCache categoryCache, NercSparqlEnrichmentService nercSparqlEnrichmentService , OntoPortalUtil ontoPortalUtil) {
         super(configurationLoader, cacheManager, jsonLdTransform, responseTransformerService, RDFResource.class);
         this.localIndexer = localIndexer;
         this.collectionService = collectionService;
         this.deduplicationService = deduplicationService;
         this.categoryCache = categoryCache;
+        this.nercSparqlEnrichmentService = nercSparqlEnrichmentService;
         this.ontoPortalUtil = ontoPortalUtil;
     }
 
@@ -84,6 +87,7 @@ public class SearchService extends AbstractEndpointService {
                     .thenApply(data -> normalizeMultilingualLabels(data, query, params.getLang()))
                     .thenApply(data -> filterOutByCollection(collection, data))
                     .thenApply(this::enrichWithCategories)
+                    .thenApply(nercSparqlEnrichmentService::enrich)
                     .thenApply(this::deduplicateResults)
                     .thenApply(data -> filterByCategories(data, params.getCategories()))
                     .thenApply(data -> reIndexResults(query, data))
@@ -208,7 +212,7 @@ public class SearchService extends AbstractEndpointService {
         String noneVal = firstString(byLang.get("none"));
         if (noneVal != null) return noneVal;
 
-        // 4 any non empty value
+        // 4 any not empty value
         return byLang.values().stream()
                 .map(this::firstString)
                 .filter(Objects::nonNull)
