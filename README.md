@@ -1,25 +1,30 @@
 # EarthPortal API Federated Service
-> Forked from [TS4NFDI api-gateway](https://github.com/ts4nfdi/api-gateway) — adapted for the EarthPortal ecosystem within the Data Terra research
-infrastructure.
+> Forked from [TS4NFDI api-gateway](https://github.com/ts4nfdi/api-gateway) and adapted for the EarthPortal ecosystem within the Data Terra research infrastructure.
 
 ## Overview
 
-The EarthPortal API Federated Service is an advanced, dynamic solution designed to perform federated calls across OntoPortal-based platform
-within EarthPortal. It is based on the TS4NFDI api-gateway service, and is particularly tailored for environments where integration and aggregation of diverse data sources are essential. The service offers search capabilities, enabling users to refine search results based on specific criteria, and supports responses in both JSON and JSON-LD formats.
+The **EarthPortal API Federated Service** is the federation layer of the EarthPortal
+terminology platform. It performs federated calls across multiple terminology sources both **OntoPortal** portals (such as EarthPortal, BiodivPortal, AgroPortal, ..) and **non-OntoPortal** services (e.g. NERC, OLS, or any other terminology backend
+described via a mapping file) and aggregates their results into a unified response.
 
-A standout feature of this service is its dynamic nature, governed by a JSON configuration file. This design choice allows for easy extension and
-customization of the service to include new TS or modify existing configurations.
+It is designed to give Earth & environmental science communities a single entry point to discover, search, and consume vocabularies hosted across heterogeneous terminology
+infrastructures, while keeping each source independent.
+
+The service is **dynamic by design**: backends, mappings, and response formats are
+driven by JSON/YAML configuration files, which makes it straightforward to extend the
+federation to new sources OntoPortal or otherwise without touching the code.
 
 ## Features
 
-- **Federated Search Across Multiple Terminology Services:** Seamlessly query multiple OntoPortal simultaneously and aggregate results into a unified format.
-- **Parametrisable Search Capabilities:** Filter and refine search results based on specific criteria, enhancing the search experience and relevance of results.
+- **Federated Search Across Multiple Terminology Services:** Seamlessly query multiple TS simultaneously and aggregate results into a unified format.
+- **Deduplication across portals**: When the same artefact or concept is hosted by several OntoPortals, results are deduplicated so users see one consolidated entry.
+- **Configurable filtering**: Refine queries by language, domain/category, and other portal-side filters. 
+- **Multiple response formats**: Get results as plain JSON or JSON-LD, suitable for both web clients and semantic-web tooling.
 - **Dynamic Configuration:** Utilize a JSON file to configure TS connections and response mappings, enabling easy addition or modification of terminology sources.
-- **Response Format Flexibility:** Choose between standard JSON and JSON-LD formats for search results, covering different use cases and requirements.
 - **Schema Transformation:** Convert search responses into specific TS output formats, facilitating integration with existing systems.
 
 
-![api gateway diagram](./documentation/assets/architecture.png)
+![api federation diagram](./documentation/assets/architecture.png)
 
 ## Installation
 
@@ -33,7 +38,7 @@ To set up the API-Federation, follow these steps:
    `docker compose --profile all up --build`
    The service will be accessible at `http://localhost:8080/api-gateway` by default.
 
-## Extensibility and Customization
+## Extensibility and Customization — adding a new OntoPortal backend
 
 The service's dynamic configuration approach allows for straightforward extensibility. Adding a new TS or modifying an existing one involves updating the JSON configuration file with the relevant details and mappings. This flexibility ensures that the service can adapt to evolving data sources and requirements without the need for significant code changes.
 
@@ -42,22 +47,7 @@ The service's dynamic configuration approach allows for straightforward extensib
 1. **Add a new Mapping Configuration file:** Create a new YAML file in the `src/main/resources/backend_types` directory. This file should define the mapping between the new TS schema and the API Federation schema. See the existing mapping files for examples of how to structure this file.
 2. **Add your database URL:** edit the `src/main/resources/databases.json` file to add the new TS database URL. This file contains the connection details for all the TS databases that the API Federation will connect to.
 
-
-## Deployment Workflow
-
-The API Federation project follows a branch-based deployment workflow to ensure stable and testable releases, see [Gitflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow).
-
-### Branch Overview
-- **feature** branches: Used for developing new features.
-- **dev** branch: Represents the integration and testing branch. Changes here are automatically deployed to the **QA cluster** for internal testing.**The QA cluster is available from 7 am to 7 pm CET on weekdays.**
-- **main** branch: Represents stable, production-ready code. Deployments from this branch go to the **production cluster**.
-
-### Deployment Environment
-
-| Branch | Environment | URL                                                                                        | Certificates |
-|---------|--------------|--------------------------------------------------------------------------------------------|---------------|
-| `dev` | QA (Quality Assurance) | [http://tsag.qa.km.k8s.zbmed.de/api-gateway/](http://tsag.qa.km.k8s.zbmed.de/api-gateway/) | ❌ No certificates |
-| `main` | Production | [https://terminology.services.base4nfdi.de/api-gateway/](https://terminology.services.base4nfdi.de/api-gateway/)                               | ✅ Certificates enabled |
+No code changes are needed; the federation engine picks up the new backend on restart.
 
 ### CI/CD Pipeline
 
@@ -75,3 +65,6 @@ Both the `dev` and `main` branches are built as part of the CI process:
 3. **Production Deployment**
    - Once QA testing is complete, `dev` is merged into `main`.
    - The production deployment can then be **triggered manually** from the CI/CD pipeline.
+
+
+
