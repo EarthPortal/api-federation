@@ -1,5 +1,6 @@
 package org.semantics.apigateway.artefacts.search;
 
+import org.semantics.apigateway.util.OntoPortalUtil;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -7,18 +8,24 @@ import java.util.*;
 @Service
 public class SearchDeduplicationService {
 
-    private static final Set<String> ONTOPORTAL_PORTALS = new HashSet<>(Arrays.asList("earthportal", "agroportal", "ecoportal", "biodivportal", "lovportal"));
+    private final OntoPortalUtil ontoPortalUtil;
+
+    public SearchDeduplicationService(OntoPortalUtil ontoPortalUtil) {
+        this.ontoPortalUtil = ontoPortalUtil;
+    }
 
     public List<Map<String, Object>> deduplicate(List<Map<String, Object>> results) {
         if (results == null || results.isEmpty()) {
             return results;
         }
 
+        Set<String> portals = ontoPortalUtil.getOntoPortalPortals();
+
         List<Map<String, Object>> ontoportalItems = new ArrayList<>();
         List<Map<String, Object>> otherItems = new ArrayList<>();
 
         for (Map<String, Object> item : results) {
-            if (isOntoportal(item)) {
+            if (ontoPortalUtil.isOntoPortalItem(item)) {
                 ontoportalItems.add(item);
             } else {
                 otherItems.add(item);
@@ -37,12 +44,12 @@ public class SearchDeduplicationService {
             Map<String, Object> existing = grouped.get(key);
             if (existing == null) {
                 Map<String, Object> copy = new LinkedHashMap<>(item);
-                copy.put("found_in", buildFoundInList(item));
+                copy.put("found_in", buildFoundInList(item, portals));
                 copy.remove("categories");
                 grouped.put(key, copy);
             } else {
                 List<Map<String, Object>> foundIn = (List<Map<String, Object>>) existing.get("found_in");
-                Map<String, Object> entry = buildFoundInEntry(item);
+                Map<String, Object> entry = buildFoundInEntry(item, portals);
                 if (entry != null && !containsPortal(foundIn, (String) entry.get("portal"))) {
                     foundIn.add(entry);
                 }
@@ -64,13 +71,13 @@ public class SearchDeduplicationService {
         return result;
     }
 
-    private Map<String, Object> buildFoundInEntry(Map<String, Object> item) {
+    private Map<String, Object> buildFoundInEntry(Map<String, Object> item, Set<String> portals) {
         Object sourceName = item.get("source_name");
         Object uiLink = item.get("source_url");
         if(sourceName == null)
             return null;
         String portal = sourceName.toString().toLowerCase();
-        if(!ONTOPORTAL_PORTALS.contains(portal))
+        if(!portals.contains(portal))
             return null;
         Map<String, Object> p = new LinkedHashMap<>();
         p.put("portal", portal);
@@ -97,13 +104,6 @@ public class SearchDeduplicationService {
         return idx >= 0 ? ontology.substring(idx+1) : ontology;
     }
 
-    private boolean isOntoportal(Map<String, Object> item) {
-        Object backendType = item.get("backend_type");
-        if(backendType == null )
-            return false;
-        return "ontoportal".equalsIgnoreCase(backendType.toString());
-    }
-
     private boolean containsPortal(List<Map<String, Object>> foundIn, String portal) {
         if(foundIn == null)
             return false;
@@ -114,9 +114,9 @@ public class SearchDeduplicationService {
         return false;
     }
 
-    private Object buildFoundInList(Map<String, Object> item) {
+    private Object buildFoundInList(Map<String, Object> item, Set<String> portals) {
         List<Map<String, Object>> list = new ArrayList<>();
-        Map<String, Object> p = buildFoundInEntry(item);
+        Map<String, Object> p = buildFoundInEntry(item, portals);
         if(p != null)
             list.add(p);
         return list;

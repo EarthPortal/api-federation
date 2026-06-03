@@ -2,6 +2,7 @@ package org.semantics.apigateway.api;
 
 import org.semantics.apigateway.config.ResponseMapping;
 import org.semantics.apigateway.service.JsonLdTransform;
+import org.semantics.apigateway.util.OntoPortalUtil;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -12,12 +13,13 @@ public class OntoPortalTransformer implements DatabaseTransformer {
     private final Map<String, Object> contextConfig;
     private final JsonLdTransform jsonLdTransform;
     private final String lang;
+    private final OntoPortalUtil ontoPortalUtil;
 
-    public OntoPortalTransformer(Map<String, Object> contextConfig, JsonLdTransform jsonLdTransform, String lang) {
+    public OntoPortalTransformer(Map<String, Object> contextConfig, JsonLdTransform jsonLdTransform, String lang, OntoPortalUtil ontoPortalUtil) {
         this.contextConfig = contextConfig;
         this.jsonLdTransform = jsonLdTransform;
         this.lang = lang;
-
+        this.ontoPortalUtil = ontoPortalUtil;
     }
 
     @Override
@@ -39,6 +41,11 @@ public class OntoPortalTransformer implements DatabaseTransformer {
         // Core fields
         if (label != null) {
             transformedItem.put("prefLabel", label);
+        }
+
+        Object labelByLang = item.get("labelByLang");
+        if (labelByLang instanceof Map && !((Map<?, ?>) labelByLang).isEmpty()) {
+            transformedItem.put("labelByLang", labelByLang);
         }
 
         Object synonyms = item.get("synonyms");
@@ -69,13 +76,24 @@ public class OntoPortalTransformer implements DatabaseTransformer {
         }
 
         Object categories = item.get("categories");
-        if (categories instanceof List && "ontoportal".equalsIgnoreCase(backendType)) {
+
+        if (categories instanceof List && !((List<?>) categories).isEmpty() && "ontoportal".equalsIgnoreCase(backendType)) {
             transformedItem.put("categories", categories);
+        } else {
+            Object subject = item.get("subject");
+            if (subject instanceof List && !((List<?>) subject).isEmpty()) {
+                transformedItem.put("categories", subject);
+            }
         }
 
         Object foundIn = item.get("found_in");
         if (foundIn instanceof List && shouldExposeFoundIn((List<?>) foundIn, sourceName)) {
             transformedItem.put("found_in", foundIn);
+        }
+
+        Object score = item.get("score");
+        if (score != null) {
+            transformedItem.put("score", score);
         }
 
             if (iri != null) {
@@ -87,7 +105,7 @@ public class OntoPortalTransformer implements DatabaseTransformer {
         }
 
         // build links  only for OntoPortal backends
-        if ("ontoportal".equalsIgnoreCase(backendType)
+        if (ontoPortalUtil.isOntoPortalItem(item)
                 && source != null && ontology != null && iri != null) {
             String encodedIri = URLEncoder.encode(iri, StandardCharsets.UTF_8);
             String ontologyAcronym = ontology.contains("/") ? ontology.substring(ontology.lastIndexOf('/') + 1) : ontology;
@@ -130,6 +148,7 @@ public class OntoPortalTransformer implements DatabaseTransformer {
 
             Object narrower = item.get("narrower");
             transformedItem.put("children", narrower instanceof List ? narrower : Collections.emptyList());
+
         }
 
         // item level @context generated from annotations

@@ -33,6 +33,9 @@ public class RDFResource extends AggregatedResourceBody {
     
     @JsonProperty("annotations")
     private Map<String, List<String>> annotations;
+
+    @JsonProperty("labelByLang")
+    private Map<String, Object> labelByLang;
     
     public String getTypeURI() {
         return "http://www.w3.org/2000/01/rdf-schema#Resource";
