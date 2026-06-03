@@ -29,12 +29,12 @@ import java.util.concurrent.Executor;
 @EnableAsync
 @EnableCaching
 @OpenAPIDefinition(
-        info = @Info(title = "API Gateway Documentation", version = "1.0", description = "The TS4NFDI Federated Service is an advanced, dynamic solution designed to perform federated calls across multiple Terminology Services (TS) within NFDI. It is particularly tailored for environments where integration and aggregation of diverse data sources are essential. The service offers search capabilities, enabling users to refine search results based on specific criteria, and supports responses in both JSON and JSON-LD formats.\n" +
+        info = @Info(title = "API Federation Documentation", version = "1.0", description = "The EarthPortal API Federated Service is an advanced, dynamic solution designed to perform federated calls across multiple Terminology Services (TS) within EarthPortal. It is particularly tailored for environments where integration and aggregation of diverse data sources are essential. The service offers search capabilities, enabling users to refine search results based on specific criteria, and supports responses in both JSON and JSON-LD formats.\n" +
                 "\n" +
                 "A standout feature of this service is its dynamic nature, governed by a JSON configuration file. This design choice allows for easy extension and customization of the service to include new TS or modify existing configurations."),
         tags = {
-                @Tag(name = "Search", description = "The search endpoints")
-//                @Tag(name = "Artefacts / Metadata", description = "The artefacts metadata endpoints"),
+                @Tag(name = "Search", description = "The search endpoints"),
+                @Tag(name = "Artefacts / Metadata", description = "The artefacts metadata endpoints"),
 //                @Tag(name = "Artefacts / Data", description = "The artefacts data endpoints"),
 //                @Tag(name = "Ols", description = "The OLS endpoints"),
         }
