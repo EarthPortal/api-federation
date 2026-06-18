@@ -32,8 +32,8 @@ public class GatewayController {
         SemanticArtefactCatalog catalog = new SemanticArtefactCatalog();
         catalog.setId(statusService.getBaseUrl(request));
         catalog.setType("https://w3id.org/mod#SemanticArtefactCatalog");
-        catalog.setTitle("API Gateway");
-        catalog.setDescription("The TS4NFDI Federated Service is an advanced, dynamic solution designed to perform federated calls across multiple Terminology Services (TS) within NFDI. It is particularly tailored for environments where integration and aggregation of diverse data sources are essential. The service offers search capabilities, enabling users to refine search results based on specific criteria, and supports responses in both JSON and JSON-LD formats.");
+        catalog.setTitle("API Federation");
+        catalog.setDescription("The EarthPortal API Federated Service is an advanced, dynamic solution designed to perform federated calls across multiple Terminology Services (TS) within EarthPortal. It is particularly tailored for environments where integration and aggregation of diverse data sources are essential. The service offers search capabilities, enabling users to refine search results based on specific criteria, and supports responses in both JSON and JSON-LD formats.");
         catalog.setStatus("alpha");
         catalog.setLicense("https://opensource.org/licenses/BSD-2-Clause");
         catalog.setLinks(
