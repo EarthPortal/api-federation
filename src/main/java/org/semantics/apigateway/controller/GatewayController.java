@@ -84,7 +84,8 @@ public class GatewayController {
             redirectUrl = "/v3/api-docs";
             return statusService.getResultFromUrlReactive(redirectUrl);
         } else {
-            redirectUrl = request.getContextPath() + "/swagger-ui/index.html?configUrl=/api-gateway/openapi/swagger-config";
+            String ctx = request.getContextPath();
+            redirectUrl = ctx + "/swagger-ui/index.html?configUrl=" + ctx + "/openapi/swagger-config";
             response.setStatus(HttpStatus.MOVED_PERMANENTLY.value());
             response.setHeader("Location", redirectUrl);
             return redirectUrl;
