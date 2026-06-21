@@ -55,12 +55,24 @@ models:
     modified: modified
 endpoints:
   search:
-    path: /search/content?q=%s&pagesize=150
+    # display= asks NVS to return the SKOS fields directly in the search
+    # response (the same fields the old SPARQL enrichment used to fetch),
+    # so no extra enrichment call is needed.
+    path: /search/content?q=%s&pagesize=150&display=@id,sdo:inDefinedTermSet,@type,skos:prefLabel,skos:altLabel,skos:definition,skos:broader,skos:narrower,owl:deprecated
     responseMapping:
       nestedJson: "member"
       totalCount: totalItems
       page: page
-      <<: *searchResult
+      label: "skos:prefLabel->@value"
+      iri: "@id"
+      ontology: "sdo:inDefinedTermSet"
+      ontologyIri: "sdo:inDefinedTermSet"
+      descriptions: "skos:definition->@value|skos:definition"
+      synonyms: "skos:altLabel->@value|skos:altLabel"
+      broader: "skos:broader->@id"
+      narrower: "skos:narrower->@id"
+      sourceUrl: "@id"
+      obsolete: "owl:deprecated"
   resources:
     path: /artefacts?pagesize=10000
     responseMapping:
