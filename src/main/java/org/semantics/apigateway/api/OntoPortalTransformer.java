@@ -137,8 +137,6 @@ public class OntoPortalTransformer implements DatabaseTransformer {
 
         // build links for NERC backend
         if ("nerc".equalsIgnoreCase(backendType) && iri != null) {
-            // NERC concepts are skos:Concept; normalize @type regardless of the
-            // sdo:DefinedTerm/skos:Concept array returned by the search endpoint.
             transformedItem.put("@type", "http://www.w3.org/2004/02/skos/core#Concept");
 
             Map<String, Object> links = new LinkedHashMap<>();

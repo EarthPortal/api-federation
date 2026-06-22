@@ -43,36 +43,25 @@ models:
     wasGeneratedBy: wasGeneratedBy
     includedInDataCatalog: includedInDataCatalog
   search: &searchResult
-    label: "sdo:name"
+    label: "skos:prefLabel->@value"
     iri: "@id"
     ontology: "sdo:inDefinedTermSet"
     ontologyIri: "sdo:inDefinedTermSet"
-    descriptions: definition
-    sourceUrl: links->ui
+    descriptions: "skos:definition->@value|skos:definition"
+    synonyms: "skos:altLabel->@value|skos:altLabel"
+    broader: "skos:broader->@id"
+    narrower: "skos:narrower->@id"
+    sourceUrl: "@id"
     type: "@type"
-    obsolete: obsolete
-    created: created
-    modified: modified
+    obsolete: "owl:deprecated"
 endpoints:
   search:
-    # display= asks NVS to return the SKOS fields directly in the search
-    # response (the same fields the old SPARQL enrichment used to fetch),
-    # so no extra enrichment call is needed.
-    path: /search/content?q=%s&pagesize=150&display=@id,sdo:inDefinedTermSet,@type,skos:prefLabel,skos:altLabel,skos:definition,skos:broader,skos:narrower,owl:deprecated
+    path: /search/content?q=%s&pagesize=150
     responseMapping:
       nestedJson: "member"
       totalCount: totalItems
       page: page
-      label: "skos:prefLabel->@value"
-      iri: "@id"
-      ontology: "sdo:inDefinedTermSet"
-      ontologyIri: "sdo:inDefinedTermSet"
-      descriptions: "skos:definition->@value|skos:definition"
-      synonyms: "skos:altLabel->@value|skos:altLabel"
-      broader: "skos:broader->@id"
-      narrower: "skos:narrower->@id"
-      sourceUrl: "@id"
-      obsolete: "owl:deprecated"
+      <<: *searchResult
   resources:
     path: /artefacts?pagesize=10000
     responseMapping:
