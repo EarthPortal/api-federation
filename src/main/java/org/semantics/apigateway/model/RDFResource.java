@@ -30,7 +30,11 @@ public class RDFResource extends AggregatedResourceBody {
     private boolean hasChildren = false;
 
     private List<RDFResource> children = new ArrayList<>();
-    
+
+    private List<String> broader = new ArrayList<>();
+
+    private List<String> narrower = new ArrayList<>();
+
     @JsonProperty("annotations")
     private Map<String, List<String>> annotations;
 
