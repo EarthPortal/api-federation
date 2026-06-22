@@ -137,6 +137,8 @@ public class OntoPortalTransformer implements DatabaseTransformer {
 
         // build links for NERC backend
         if ("nerc".equalsIgnoreCase(backendType) && iri != null) {
+            transformedItem.put("@type", "http://www.w3.org/2004/02/skos/core#Concept");
+
             Map<String, Object> links = new LinkedHashMap<>();
             links.put("self", iri + "?_profile=nvs&_mediatype=application/ld+json");
             links.put("ui", iri);

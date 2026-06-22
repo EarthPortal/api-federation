@@ -43,16 +43,17 @@ models:
     wasGeneratedBy: wasGeneratedBy
     includedInDataCatalog: includedInDataCatalog
   search: &searchResult
-    label: "sdo:name"
+    label: "skos:prefLabel->@value"
     iri: "@id"
     ontology: "sdo:inDefinedTermSet"
     ontologyIri: "sdo:inDefinedTermSet"
-    descriptions: definition
-    sourceUrl: links->ui
+    descriptions: "skos:definition->@value|skos:definition"
+    synonyms: "skos:altLabel->@value|skos:altLabel"
+    broader: "skos:broader->@id"
+    narrower: "skos:narrower->@id"
+    sourceUrl: "@id"
     type: "@type"
-    obsolete: obsolete
-    created: created
-    modified: modified
+    obsolete: "owl:deprecated"
 endpoints:
   search:
     path: /search/content?q=%s&pagesize=150
