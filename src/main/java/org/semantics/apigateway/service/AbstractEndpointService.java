@@ -9,6 +9,7 @@ import org.semantics.apigateway.model.responses.*;
 import org.semantics.apigateway.service.configuration.ConfigurationLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 
@@ -36,6 +37,11 @@ public abstract class AbstractEndpointService {
 
     protected static final Logger logger = LoggerFactory.getLogger(AbstractEndpointService.class);
 
+    // Optional instance-wide default output schema applied when the client omits targetDbSchema
+    // (e.g. the OntoPortal-only federation instance defaults to the OntoPortal schema). Empty = no default.
+    @Value("${gateway.default-target-db-schema:}")
+    private String defaultTargetDbSchema;
+
     public AbstractEndpointService(ConfigurationLoader configurationLoader, CacheManager cacheManager, JsonLdTransform jsonLdTransform, ResponseTransformerService responseTransformerService, Class<? extends AggregatedResourceBody> clazz) {
         this.configurationLoader = configurationLoader;
         this.ontologyConfigs = configurationLoader.getDatabaseConfigs();
@@ -47,6 +53,20 @@ public abstract class AbstractEndpointService {
 
     public ApiAccessor getAccessor() {
         return new ApiAccessor(this.cacheManager);
+    }
+
+    /**
+     * Returns the client-requested target schema, or the configured instance default
+     * ({@code gateway.default-target-db-schema}) when the client did not specify one.
+     */
+    protected TargetDbSchema effectiveTargetSchema(TargetDbSchema requested) {
+        if (requested != null) {
+            return requested;
+        }
+        if (defaultTargetDbSchema == null || defaultTargetDbSchema.isBlank()) {
+            return null;
+        }
+        return TargetDbSchema.valueOf(defaultTargetDbSchema);
     }
 
     protected AggregatedApiResponse transformForTargetDbSchema(AggregatedApiResponse data, TargetDbSchema targetDbSchemaEnum, String endpoint, String lang) {

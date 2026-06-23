@@ -52,7 +52,7 @@ public class ArtefactsService extends AbstractEndpointService {
                             .thenApply(data -> filterByCategories(data, params.getCategories()))
                             .thenApply(this::deduplicateArtefacts)
                             .thenApply(data -> transformJsonLd(data, params))
-                            .thenApply(data -> transformForTargetDbSchema(data, params.getTargetDbSchema(), endpoint)).get();
+                            .thenApply(data -> transformForTargetDbSchema(data, effectiveTargetSchema(params.getTargetDbSchema()), endpoint)).get();
         } catch (InterruptedException | ExecutionException e) {
             logger.error(e.getMessage(), e);
             return null;
@@ -70,7 +70,7 @@ public class ArtefactsService extends AbstractEndpointService {
                     .thenApply(this::deduplicateArtefacts)
                     .thenApply(this::adjustSingleOrList)
                     .thenApply(x -> transformJsonLd(x, params))
-                    .thenApply(data -> transformForTargetDbSchema(data, params.getTargetDbSchema(), endpoint, false))
+                    .thenApply(data -> transformForTargetDbSchema(data, effectiveTargetSchema(params.getTargetDbSchema()), endpoint, false))
                     .get();
         } catch (InterruptedException | ExecutionException e) {
             logger.error(e.getMessage(), e);
@@ -96,7 +96,7 @@ public class ArtefactsService extends AbstractEndpointService {
                 .thenApply(this::deduplicateArtefacts)
                 .thenApply(data -> reIndexResults(query, data))
                 .thenApply(x -> transformJsonLd(x, params))
-                .thenApply(data -> transformForTargetDbSchema(data, params.getTargetDbSchema(), endpoint));
+                .thenApply(data -> transformForTargetDbSchema(data, effectiveTargetSchema(params.getTargetDbSchema()), endpoint));
     }
 
     private AggregatedApiResponse deduplicateArtefacts(AggregatedApiResponse data) {
