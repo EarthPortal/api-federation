@@ -26,12 +26,6 @@
     },
     {
       "type": "ontoportal",
-      "name": "lovportal",
-      "url": "https://data.lovportal.lirmm.fr",
-      "apiKey": "${LOVPORTAL_API_KEY}"
-    },
-    {
-      "type": "ontoportal",
       "name": "ontoportal-astro",
       "url": "https://data.ontoportal-astro.eu",
       "apiKey": "${AGROPORTAL_API_KEY}"
