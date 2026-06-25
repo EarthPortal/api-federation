@@ -1,0 +1,34 @@
+{
+  "databases": [
+    {
+      "type": "ontoportal",
+      "name": "agroportal",
+      "url": "https://data.agroportal.eu",
+      "apiKey": "${AGROPORTAL_API_KEY}"
+    },
+    {
+      "type": "ontoportal",
+      "name": "earthportal",
+      "url": "https://data.earthportal.eu",
+      "apiKey": "${EARTHPORTAL_API_KEY}"
+    },
+    {
+      "type": "ontoportal",
+      "name": "biodivportal",
+      "url": "https://data.biodivportal.gfbio.org",
+      "apiKey": "${BIODIVPORTAL_API_KEY}"
+    },
+    {
+      "type": "ontoportal",
+      "name": "ecoportal",
+      "url": "https://data.ecoportal.lifewatch.eu",
+      "apiKey": "${ECOPORTAL_API_KEY}"
+    },
+    {
+      "type": "ontoportal",
+      "name": "ontoportal-astro",
+      "url": "https://data.ontoportal-astro.eu",
+      "apiKey": "${AGROPORTAL_API_KEY}"
+    }
+  ]
+}

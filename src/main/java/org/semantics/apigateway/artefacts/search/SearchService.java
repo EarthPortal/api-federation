@@ -71,7 +71,7 @@ public class SearchService extends AbstractEndpointService {
             User currentUser,
             ApiAccessor accessor) {
         String endpoint = "search";
-        TargetDbSchema targetDbSchema = params.getTargetDbSchema();
+        TargetDbSchema targetDbSchema = effectiveTargetSchema(params.getTargetDbSchema());
         TerminologyCollection collection = collectionService.getCurrentUserCollection(collectionId, currentUser);
         accessor = initAccessor(database, endpoint, accessor);
         accessor = applyCollection(accessor, collection, endpoint);
@@ -313,7 +313,7 @@ public class SearchService extends AbstractEndpointService {
             User currentUser,
             ApiAccessor accessor) {
         String endpoint = "suggest";
-        TargetDbSchema targetDbSchema = params.getTargetDbSchema();
+        TargetDbSchema targetDbSchema = effectiveTargetSchema(params.getTargetDbSchema());
         TerminologyCollection collection = collectionService.getCurrentUserCollection(collectionId, currentUser);
         accessor = initAccessor(database, endpoint, accessor);
         accessor = applyCollection(accessor, collection, endpoint);
