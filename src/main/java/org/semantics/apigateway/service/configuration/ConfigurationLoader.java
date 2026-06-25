@@ -9,6 +9,7 @@ import org.semantics.apigateway.config.ServiceConfig;
 import org.semantics.apigateway.config.ServicesConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
@@ -35,6 +36,11 @@ public class ConfigurationLoader {
     private static final Logger logger = LoggerFactory.getLogger(ConfigurationLoader.class);
     private List<DatabaseConfig> databaseConfigs;
     private List<ServiceConfig> serviceConfigs;
+
+    // Location of the databases config (classpath: or file:). Overridable via DATABASES_CONFIG env
+    // so a second instance can be limited to a subset of sources (e.g. OntoPortal-only federation).
+    @Value("${gateway.databases-config:classpath:databases.json}")
+    private String databasesConfigLocation;
 
     public  ConfigurationLoader(ResourceLoader resourceLoader, ConfigurableEnvironment environment) {
         this.resourceLoader = resourceLoader;
@@ -89,7 +95,8 @@ public class ConfigurationLoader {
 
 
     private List<DatabaseConfig> loadDatabaseConfigurations() throws IOException {
-        Resource dataBasesConfigResource = resourceLoader.getResource("classpath:databases.json");
+        logger.info("Loading databases configuration from: {}", databasesConfigLocation);
+        Resource dataBasesConfigResource = resourceLoader.getResource(databasesConfigLocation);
         String databaseConfigJson = StreamUtils.copyToString(dataBasesConfigResource.getInputStream(), StandardCharsets.UTF_8);
 
         // Replace environment variables in the config

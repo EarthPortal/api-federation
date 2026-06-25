@@ -1,10 +1,7 @@
 package org.semantics.apigateway;
 
-import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
-import io.swagger.v3.oas.annotations.info.Info;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.semantics.apigateway.model.user.Role;
 import org.semantics.apigateway.model.user.User;
 import org.semantics.apigateway.service.auth.UserRepository;
@@ -28,17 +25,8 @@ import java.util.concurrent.Executor;
 @EnableConfigurationProperties
 @EnableAsync
 @EnableCaching
-@OpenAPIDefinition(
-        info = @Info(title = "API Federation Documentation", version = "1.0", description = "The EarthPortal API Federated Service is an advanced, dynamic solution designed to perform federated calls across multiple Terminology Services (TS) within EarthPortal. It is particularly tailored for environments where integration and aggregation of diverse data sources are essential. The service offers search capabilities, enabling users to refine search results based on specific criteria, and supports responses in both JSON and JSON-LD formats.\n" +
-                "\n" +
-                "A standout feature of this service is its dynamic nature, governed by a JSON configuration file. This design choice allows for easy extension and customization of the service to include new TS or modify existing configurations."),
-        tags = {
-                @Tag(name = "Search", description = "The search endpoints"),
-                @Tag(name = "Artefacts / Metadata", description = "The artefacts metadata endpoints"),
-//                @Tag(name = "Artefacts / Data", description = "The artefacts data endpoints"),
-//                @Tag(name = "Ols", description = "The OLS endpoints"),
-        }
-)
+// OpenAPI info (title/description) and tags are defined programmatically in
+// org.semantics.apigateway.config.OpenApiConfig so they can be configured per instance.
 @SecurityScheme(
         name = "BearerAuth",
         type = SecuritySchemeType.HTTP,

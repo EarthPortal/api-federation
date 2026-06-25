@@ -17,8 +17,29 @@ services:
       SPRING_DATASOURCE_PASSWORD: password
       SPRING_JPA_HIBERNATE_DDL_AUTO: none
 
+  api-gateway-federation:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: api-gateway-federation
+    ports:
+      - "${FEDERATION_WEBPORT:-8086}:8080"
+    profiles:
+      - all
+    depends_on:
+      - postgres
+    environment:
+      DATABASES_CONFIG: "classpath:databases.ontoportal.json"
+      OPENAPI_TITLE: "API Federation"
+      OPENAPI_DESCRIPTION: "The EarthPortal API Federation Service is a dynamic solution designed to perform federated calls across multiple OntoPortal-based Terminology Services (TS). It aggregates and deduplicates results from these OntoPortal sources, offers search and artefact metadata capabilities, and supports responses in both JSON and JSON-LD formats. Its behaviour is governed by a JSON configuration file, allowing OntoPortal sources to be added or modified without changing the code."
+      DEFAULT_TARGET_DB_SCHEMA: "ontoportal"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/db
+      SPRING_DATASOURCE_USERNAME: developer
+      SPRING_DATASOURCE_PASSWORD: password
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
+
   postgres:
-    image: postgres
+    image: postgres:16
     restart: always
     environment:
       - POSTGRES_DB=db
