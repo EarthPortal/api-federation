@@ -22,10 +22,10 @@ public class OpenApiConfig {
 
     private final ConfigurationLoader configurationLoader;
 
-    @Value("${gateway.openapi.title:API Federation Documentation}")
+    @Value("${gateway.openapi.title:}")
     private String openapiTitle;
 
-    @Value("${gateway.openapi.description:The EarthPortal API Federated Service is an advanced, dynamic solution designed to perform federated calls across multiple Terminology Services (TS). It offers search capabilities and supports responses in both JSON and JSON-LD formats.}")
+    @Value("${gateway.openapi.description:}")
     private String openapiDescription;
 
     public OpenApiConfig(ConfigurationLoader configurationLoader) {
