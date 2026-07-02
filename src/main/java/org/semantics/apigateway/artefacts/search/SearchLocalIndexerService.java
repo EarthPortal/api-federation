@@ -24,12 +24,24 @@ import org.apache.commons.text.similarity.CosineSimilarity;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Service
 @NoArgsConstructor
 public class SearchLocalIndexerService {
 
     public static final String INDEXED_FIELD = "label";
+
+    // Common function words that carry little search relevance on their own. Excluded from
+    // anchor/individual-term boosting so that e.g. "de" in "larve de poisson" doesn't inflate the
+    // score of unrelated labels like "De-anonymisation" or "de-extinction" (tokenized to "de" + ...).
+    // Phrase matching (which needs the full expression, connectors included) is left untouched.
+    private static final Set<String> STOPWORDS = Set.of(
+            // French
+            "de", "du", "des", "le", "la", "les", "un", "une", "et", "en", "à", "au", "aux", "ce", "ces", "que", "qui",
+            // English
+            "the", "of", "and", "in", "on", "at", "a", "an", "to", "for", "is", "are"
+    );
 
     public List<Map<String, Object>> sortByCosineSimilarity(String query, List<Map<String, Object>> results) {
         CosineSimilarity cosineSimilarity = new CosineSimilarity();
@@ -159,8 +171,18 @@ public class SearchLocalIndexerService {
         // Get lowercase versions for case-insensitive matching
         String[] lowerTerms = Arrays.stream(terms).map(String::toLowerCase).toArray(String[]::new);
 
-        // 1. Exact match of query term at start (highest priority)
-        Term exactQueryTerm = new Term(field, queryTerms[0]);
+        // Indices of "meaningful" (non-stopword) terms, used as anchors and for individual-term
+        // boosting. Falls back to all terms if the query is made up entirely of stopwords.
+        int[] meaningfulIdx = IntStream.range(0, terms.length)
+                .filter(i -> !STOPWORDS.contains(lowerTerms[i]))
+                .toArray();
+        if (meaningfulIdx.length == 0) {
+            meaningfulIdx = IntStream.range(0, terms.length).toArray();
+        }
+        int anchor = meaningfulIdx[0];
+
+        // 1. Exact match of first meaningful query term at start (highest priority)
+        Term exactQueryTerm = new Term(field, queryTerms[anchor]);
         PrefixQuery exactQueryPrefix = new PrefixQuery(exactQueryTerm);
         SpanQuery exactQuerySpan = new SpanMultiTermQueryWrapper<>(exactQueryPrefix);
         SpanFirstQuery exactQueryFirst = new SpanFirstQuery(exactQuerySpan, 1);
@@ -171,7 +193,7 @@ public class SearchLocalIndexerService {
         mainQuery.add(new BoostQuery(exactTermQuery, 150), BooleanClause.Occur.SHOULD);
 
         // 3. Case-insensitive prefix match at start
-        Term lowerTerm = new Term(field + ".lowercase", lowerTerms[0]);
+        Term lowerTerm = new Term(field + ".lowercase", lowerTerms[anchor]);
         PrefixQuery lowerPrefix = new PrefixQuery(lowerTerm);
         SpanQuery lowerSpan = new SpanMultiTermQueryWrapper<>(lowerPrefix);
         SpanFirstQuery lowerFirst = new SpanFirstQuery(lowerSpan, 1);
@@ -202,8 +224,9 @@ public class SearchLocalIndexerService {
             mainQuery.add(new BoostQuery(phraseLowerQuery.build(), 300), BooleanClause.Occur.SHOULD);
         }
 
-        // 6. Individual term matches
-        for (int i = 0; i < terms.length; i++) {
+        // 6. Individual term matches (stopwords excluded: they match too many unrelated labels
+        // to be a meaningful relevance signal on their own)
+        for (int i : meaningfulIdx) {
             // Exact case match of query terms
             TermQuery termQuery = new TermQuery(new Term(field, queryTerms[i]));
             mainQuery.add(new BoostQuery(termQuery, Math.max(30 - (i * 5), 10)), BooleanClause.Occur.SHOULD);
