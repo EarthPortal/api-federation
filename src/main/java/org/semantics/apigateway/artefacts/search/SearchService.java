@@ -87,7 +87,7 @@ public class SearchService extends AbstractEndpointService {
                     .thenApply(this::enrichWithCategories)
                     .thenApply(this::deduplicateResults)
                     .thenApply(data -> filterByCategories(data, params.getCategories()))
-                    .thenApply(data -> reIndexResults(query, data))
+                    .thenApply(data -> reIndexResults(query, data, params.getLang()))
                     .thenApply(x -> transformJsonLd(x, params))
                     .thenApply(data -> transformForTargetDbSchema(data, targetDbSchema, endpoint, params.getLang()))
                     .get();
@@ -329,7 +329,7 @@ public class SearchService extends AbstractEndpointService {
                     .thenApply(this::enrichWithCategories)
                     .thenApply(this::deduplicateResults)
                     .thenApply(data -> filterByCategories(data, params.getCategories()))
-                    .thenApply(data -> reIndexResults(query, data))
+                    .thenApply(data -> reIndexResults(query, data, params.getLang()))
                     .thenApply(x -> transformJsonLd(x, params))
                     .thenApply(data -> transformForTargetDbSchema(data, targetDbSchema, endpoint, params.getLang()))
                     .get();
@@ -346,10 +346,10 @@ public class SearchService extends AbstractEndpointService {
         return data;
     }
 
-    private AggregatedApiResponse reIndexResults(String query, AggregatedApiResponse data) {
+    private AggregatedApiResponse reIndexResults(String query, AggregatedApiResponse data, String lang) {
         List<Map<String, Object>> collection = data.getCollection();
         try {
-            collection = this.localIndexer.reIndexResults(query.replace("*", ""), collection, logger);
+            collection = this.localIndexer.reIndexResults(query.replace("*", ""), collection, logger, lang);
         } catch (IOException | ParseException e) {
             throw new RuntimeException("Error during re-indexing results", e);
         }
