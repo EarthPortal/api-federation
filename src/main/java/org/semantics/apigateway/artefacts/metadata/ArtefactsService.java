@@ -94,7 +94,7 @@ public class ArtefactsService extends AbstractEndpointService {
                 .thenApply(data -> filterOutByQuery(query, data))
                 .thenApply(data -> filterByCategories(data, params.getCategories()))
                 .thenApply(this::deduplicateArtefacts)
-                .thenApply(data -> reIndexResults(query, data))
+                .thenApply(data -> reIndexResults(query, data, params.getLang()))
                 .thenApply(x -> transformJsonLd(x, params))
                 .thenApply(data -> transformForTargetDbSchema(data, effectiveTargetSchema(params.getTargetDbSchema()), endpoint));
     }
@@ -105,11 +105,11 @@ public class ArtefactsService extends AbstractEndpointService {
         return data;
     }
 
-    private AggregatedApiResponse reIndexResults(String query, AggregatedApiResponse data) {
+    private AggregatedApiResponse reIndexResults(String query, AggregatedApiResponse data, String lang) {
         if (query == null || query.isEmpty()) return data;
         List<Map<String, Object>> collection = data.getCollection();
         try {
-            collection = this.localIndexer.reIndexResults(query.replace("*", ""), collection, logger);
+            collection = this.localIndexer.reIndexResults(query.replace("*", ""), collection, logger, lang);
         } catch (IOException | ParseException e) {
             throw new RuntimeException("Error during re-indexing results", e);
         }
