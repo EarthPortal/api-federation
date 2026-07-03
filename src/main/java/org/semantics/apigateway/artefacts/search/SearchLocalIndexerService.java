@@ -1,6 +1,9 @@
 package org.semantics.apigateway.artefacts.search;
 
 import lombok.NoArgsConstructor;
+import org.apache.lucene.analysis.CharArraySet;
+import org.apache.lucene.analysis.en.EnglishAnalyzer;
+import org.apache.lucene.analysis.fr.FrenchAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -32,16 +35,34 @@ public class SearchLocalIndexerService {
 
     public static final String INDEXED_FIELD = "label";
 
-    // Common function words that carry little search relevance on their own. Excluded from
-    // anchor/individual-term boosting so that e.g. "de" in "larve de poisson" doesn't inflate the
-    // score of unrelated labels like "De-anonymisation" or "de-extinction" (tokenized to "de" + ...).
-    // Phrase matching (which needs the full expression, connectors included) is left untouched.
-    private static final Set<String> STOPWORDS = Set.of(
-            // French
-            "de", "du", "des", "le", "la", "les", "un", "une", "et", "en", "à", "au", "aux", "ce", "ces", "que", "qui",
-            // English
-            "the", "of", "and", "in", "on", "at", "a", "an", "to", "for", "is", "are"
-    );
+    private static final CharArraySet FRENCH_STOPWORDS = FrenchAnalyzer.getDefaultStopSet();
+    private static final CharArraySet ENGLISH_STOPWORDS = EnglishAnalyzer.ENGLISH_STOP_WORDS_SET;
+    private static final CharArraySet STOPWORDS_UNION = mergeStopSets(FRENCH_STOPWORDS, ENGLISH_STOPWORDS);
+
+    private static CharArraySet mergeStopSets(CharArraySet... sets) {
+        CharArraySet merged = new CharArraySet(64, true);
+        for (CharArraySet set : sets) {
+            merged.addAll(set);
+        }
+        return CharArraySet.unmodifiableSet(merged);
+    }
+
+    private static CharArraySet resolveStopwords(String lang) {
+        if (lang == null || lang.isEmpty()) {
+            return STOPWORDS_UNION;
+        }
+        String normalized = lang.trim().toLowerCase();
+        if (normalized.equals("fr")) {
+            return FRENCH_STOPWORDS;
+        }
+        if (normalized.equals("en")) {
+            return ENGLISH_STOPWORDS;
+        }
+        if (normalized.equals("all") || normalized.contains(",")) {
+            return STOPWORDS_UNION;
+        }
+        return ENGLISH_STOPWORDS;
+    }
 
     public List<Map<String, Object>> sortByCosineSimilarity(String query, List<Map<String, Object>> results) {
         CosineSimilarity cosineSimilarity = new CosineSimilarity();
@@ -79,10 +100,10 @@ public class SearchLocalIndexerService {
     }
 
 
-    public List<Map<String, Object>> reIndexResults(String query, List<Map<String, Object>> combinedResults, Logger logger) throws IOException, ParseException {
+    public List<Map<String, Object>> reIndexResults(String query, List<Map<String, Object>> combinedResults, Logger logger, String lang) throws IOException, ParseException {
         Directory index = indexResults(combinedResults);
 
-        List<Map<String, Object>> localIndexedResult = localIndexSearch(query, logger, index, INDEXED_FIELD);
+        List<Map<String, Object>> localIndexedResult = localIndexSearch(query, logger, index, INDEXED_FIELD, lang);
 
         List<Map<String, Object>> ranked = localIndexedResult.stream().map(x -> {
                     Map<String, Object> original = combinedResults.stream()
@@ -132,14 +153,14 @@ public class SearchLocalIndexerService {
         }
     }
 
-    private static List<Map<String, Object>> localIndexSearch(String query, Logger logger, Directory index, String field) throws IOException {
+    private static List<Map<String, Object>> localIndexSearch(String query, Logger logger, Directory index, String field, String lang) throws IOException {
         IndexReader reader = DirectoryReader.open(index);
         IndexSearcher searcher = new IndexSearcher(reader);
         BooleanQuery.Builder mainQuery = new BooleanQuery.Builder();
 
         String[] terms = query.toLowerCase().split("\\s+");
 
-        Query q = queryBuilder(field, terms, mainQuery);
+        Query q = queryBuilder(field, terms, mainQuery, resolveStopwords(lang));
 
 
         TopDocs resultsTopDocs = searcher.search(q, Math.max(reader.numDocs(), 1));
@@ -161,7 +182,7 @@ public class SearchLocalIndexerService {
     /*
         Define the local search result order/rank
      */
-    private static Query queryBuilder(String field, String[] terms, BooleanQuery.Builder mainQuery) {
+    private static Query queryBuilder(String field, String[] terms, BooleanQuery.Builder mainQuery, CharArraySet stopwords) {
         if (terms.length == 0) {
             return mainQuery.build();
         }
@@ -171,10 +192,8 @@ public class SearchLocalIndexerService {
         // Get lowercase versions for case-insensitive matching
         String[] lowerTerms = Arrays.stream(terms).map(String::toLowerCase).toArray(String[]::new);
 
-        // Indices of "meaningful" (non-stopword) terms, used as anchors and for individual-term
-        // boosting. Falls back to all terms if the query is made up entirely of stopwords.
         int[] meaningfulIdx = IntStream.range(0, terms.length)
-                .filter(i -> !STOPWORDS.contains(lowerTerms[i]))
+                .filter(i -> !stopwords.contains(lowerTerms[i]))
                 .toArray();
         if (meaningfulIdx.length == 0) {
             meaningfulIdx = IntStream.range(0, terms.length).toArray();
@@ -225,7 +244,6 @@ public class SearchLocalIndexerService {
         }
 
         // 6. Individual term matches (stopwords excluded: they match too many unrelated labels
-        // to be a meaningful relevance signal on their own)
         for (int i : meaningfulIdx) {
             // Exact case match of query terms
             TermQuery termQuery = new TermQuery(new Term(field, queryTerms[i]));
