@@ -1,6 +1,9 @@
 package org.semantics.apigateway.artefacts.search;
 
 import lombok.NoArgsConstructor;
+import org.apache.lucene.analysis.CharArraySet;
+import org.apache.lucene.analysis.en.EnglishAnalyzer;
+import org.apache.lucene.analysis.fr.FrenchAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -24,12 +27,42 @@ import org.apache.commons.text.similarity.CosineSimilarity;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Service
 @NoArgsConstructor
 public class SearchLocalIndexerService {
 
     public static final String INDEXED_FIELD = "label";
+
+    private static final CharArraySet FRENCH_STOPWORDS = FrenchAnalyzer.getDefaultStopSet();
+    private static final CharArraySet ENGLISH_STOPWORDS = EnglishAnalyzer.ENGLISH_STOP_WORDS_SET;
+    private static final CharArraySet STOPWORDS_UNION = mergeStopSets(FRENCH_STOPWORDS, ENGLISH_STOPWORDS);
+
+    private static CharArraySet mergeStopSets(CharArraySet... sets) {
+        CharArraySet merged = new CharArraySet(64, true);
+        for (CharArraySet set : sets) {
+            merged.addAll(set);
+        }
+        return CharArraySet.unmodifiableSet(merged);
+    }
+
+    private static CharArraySet resolveStopwords(String lang) {
+        if (lang == null || lang.isEmpty()) {
+            return STOPWORDS_UNION;
+        }
+        String normalized = lang.trim().toLowerCase();
+        if (normalized.equals("fr")) {
+            return FRENCH_STOPWORDS;
+        }
+        if (normalized.equals("en")) {
+            return ENGLISH_STOPWORDS;
+        }
+        if (normalized.equals("all") || normalized.contains(",")) {
+            return STOPWORDS_UNION;
+        }
+        return ENGLISH_STOPWORDS;
+    }
 
     public List<Map<String, Object>> sortByCosineSimilarity(String query, List<Map<String, Object>> results) {
         CosineSimilarity cosineSimilarity = new CosineSimilarity();
@@ -67,10 +100,10 @@ public class SearchLocalIndexerService {
     }
 
 
-    public List<Map<String, Object>> reIndexResults(String query, List<Map<String, Object>> combinedResults, Logger logger) throws IOException, ParseException {
+    public List<Map<String, Object>> reIndexResults(String query, List<Map<String, Object>> combinedResults, Logger logger, String lang) throws IOException, ParseException {
         Directory index = indexResults(combinedResults);
 
-        List<Map<String, Object>> localIndexedResult = localIndexSearch(query, logger, index, INDEXED_FIELD);
+        List<Map<String, Object>> localIndexedResult = localIndexSearch(query, logger, index, INDEXED_FIELD, lang);
 
         List<Map<String, Object>> ranked = localIndexedResult.stream().map(x -> {
                     Map<String, Object> original = combinedResults.stream()
@@ -120,14 +153,14 @@ public class SearchLocalIndexerService {
         }
     }
 
-    private static List<Map<String, Object>> localIndexSearch(String query, Logger logger, Directory index, String field) throws IOException {
+    private static List<Map<String, Object>> localIndexSearch(String query, Logger logger, Directory index, String field, String lang) throws IOException {
         IndexReader reader = DirectoryReader.open(index);
         IndexSearcher searcher = new IndexSearcher(reader);
         BooleanQuery.Builder mainQuery = new BooleanQuery.Builder();
 
         String[] terms = query.toLowerCase().split("\\s+");
 
-        Query q = queryBuilder(field, terms, mainQuery);
+        Query q = queryBuilder(field, terms, mainQuery, resolveStopwords(lang));
 
 
         TopDocs resultsTopDocs = searcher.search(q, Math.max(reader.numDocs(), 1));
@@ -149,7 +182,7 @@ public class SearchLocalIndexerService {
     /*
         Define the local search result order/rank
      */
-    private static Query queryBuilder(String field, String[] terms, BooleanQuery.Builder mainQuery) {
+    private static Query queryBuilder(String field, String[] terms, BooleanQuery.Builder mainQuery, CharArraySet stopwords) {
         if (terms.length == 0) {
             return mainQuery.build();
         }
@@ -159,8 +192,16 @@ public class SearchLocalIndexerService {
         // Get lowercase versions for case-insensitive matching
         String[] lowerTerms = Arrays.stream(terms).map(String::toLowerCase).toArray(String[]::new);
 
-        // 1. Exact match of query term at start (highest priority)
-        Term exactQueryTerm = new Term(field, queryTerms[0]);
+        int[] meaningfulIdx = IntStream.range(0, terms.length)
+                .filter(i -> !stopwords.contains(lowerTerms[i]))
+                .toArray();
+        if (meaningfulIdx.length == 0) {
+            meaningfulIdx = IntStream.range(0, terms.length).toArray();
+        }
+        int anchor = meaningfulIdx[0];
+
+        // 1. Exact match of first meaningful query term at start (highest priority)
+        Term exactQueryTerm = new Term(field, queryTerms[anchor]);
         PrefixQuery exactQueryPrefix = new PrefixQuery(exactQueryTerm);
         SpanQuery exactQuerySpan = new SpanMultiTermQueryWrapper<>(exactQueryPrefix);
         SpanFirstQuery exactQueryFirst = new SpanFirstQuery(exactQuerySpan, 1);
@@ -171,7 +212,7 @@ public class SearchLocalIndexerService {
         mainQuery.add(new BoostQuery(exactTermQuery, 150), BooleanClause.Occur.SHOULD);
 
         // 3. Case-insensitive prefix match at start
-        Term lowerTerm = new Term(field + ".lowercase", lowerTerms[0]);
+        Term lowerTerm = new Term(field + ".lowercase", lowerTerms[anchor]);
         PrefixQuery lowerPrefix = new PrefixQuery(lowerTerm);
         SpanQuery lowerSpan = new SpanMultiTermQueryWrapper<>(lowerPrefix);
         SpanFirstQuery lowerFirst = new SpanFirstQuery(lowerSpan, 1);
@@ -202,8 +243,8 @@ public class SearchLocalIndexerService {
             mainQuery.add(new BoostQuery(phraseLowerQuery.build(), 300), BooleanClause.Occur.SHOULD);
         }
 
-        // 6. Individual term matches
-        for (int i = 0; i < terms.length; i++) {
+        // 6. Individual term matches (stopwords excluded: they match too many unrelated labels
+        for (int i : meaningfulIdx) {
             // Exact case match of query terms
             TermQuery termQuery = new TermQuery(new Term(field, queryTerms[i]));
             mainQuery.add(new BoostQuery(termQuery, Math.max(30 - (i * 5), 10)), BooleanClause.Occur.SHOULD);
