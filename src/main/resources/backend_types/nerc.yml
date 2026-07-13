@@ -69,12 +69,12 @@ endpoints:
       <<: *artefact
 
   concept_details:
-    path: /artefacts/%s/concepts/%s?apikey=%s
+    path: /artefacts/%s/concepts/%s
     responseMapping:
       <<: *searchResult
 
   resource_details:
-    path: /artefacts/%s?apikey=%s
+    path: /artefacts/%s
     responseMapping:
       <<: *artefact
 
