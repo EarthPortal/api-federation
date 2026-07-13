@@ -163,6 +163,7 @@ public class ArtefactsService extends AbstractEndpointService {
                     String iri = item.get("iri") == null ? "" : item.get("iri").toString();
                     boolean result = label.toLowerCase().contains(query.toLowerCase());
                     result = result || iri.toLowerCase().contains(query.toLowerCase());
+                    result = result || matchesDescriptions(item.get("descriptions"), query);
                     return result;
                 })
                 .toList();
@@ -170,6 +171,15 @@ public class ArtefactsService extends AbstractEndpointService {
         data.setCollection(filtered);
         data.setTotalCount(filtered.size());
         return data;
+    }
+
+    private boolean matchesDescriptions(Object descriptions, String query) {
+        if (!(descriptions instanceof List)) {
+            return false;
+        }
+        String q = query.toLowerCase();
+        return ((List<?>) descriptions).stream()
+                .anyMatch(d -> d != null && d.toString().toLowerCase().contains(q));
     }
 
     private CompletableFuture<AggregatedApiResponse> findAllArtefacts(String database, CommonRequestParams params, String collectionId, User currentUser, ApiAccessor accessor) {
