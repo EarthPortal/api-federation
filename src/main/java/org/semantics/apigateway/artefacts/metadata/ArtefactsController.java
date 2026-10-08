@@ -35,14 +35,29 @@ public class ArtefactsController {
             @RequestParam String database,
             @Parameter(description = "Transform the response result to a specific schema")
             @RequestParam(required = false) TargetDbSchema targetDbSchema,
-            @Parameter(description = "Filter results by ontology categories (comma-separated)")
+            @Parameter(description = "Filter results by ontology categories ")
             @RequestParam(required = false, defaultValue = "") String categories,
+            @Parameter(description = "Filter results by ontology groups")
+            @RequestParam(required = false, defaultValue = "") String groups,
+            @Parameter(description = "Filter results by ontology format / language, e.g. OWL, SKOS, OBO ")
+            @RequestParam(required = false, defaultValue = "") String format,
+            @Parameter(description = "Filter results by the ontology's natural languages, e.g. en, fr ")
+            @RequestParam(required = false, defaultValue = "") String naturalLanguages,
+            @Parameter(description = "Filter results by formality level ")
+            @RequestParam(required = false, defaultValue = "") String formalityLevels,
+            @Parameter(description = "Filter results by ontology type ")
+            @RequestParam(required = false, defaultValue = "") String ontologyTypes,
             @Parameter(description = "Collection id to browse terminologies in", hidden = true)
             @RequestParam(required = false) String collectionId
     ) throws ExecutionException, InterruptedException {
         CommonRequestParams params = new CommonRequestParams();
         params.setTargetDbSchema(targetDbSchema);
         params.setCategories(categories);
+        params.setGroups(groups);
+        params.setFormat(format);
+        params.setNaturalLanguages(naturalLanguages);
+        params.setFormalityLevels(formalityLevels);
+        params.setOntologyTypes(ontologyTypes);
         User user = authService.tryGetCurrentUser();
         return this.artefactsService.getArtefacts(database, params, collectionId, user, null);
     }

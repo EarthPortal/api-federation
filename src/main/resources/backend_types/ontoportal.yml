@@ -68,6 +68,9 @@ models:
     accessRights: ontology->viewingRestriction
     administeredBy: ontology->administeredBy
     group: ontology->group
+    format: hasOntologyLanguage
+    formalityLevel: hasFormalityLevel
+    ontologyType: isOfType
   term: &term
     label: prefLabel|label
     iri: "@id"
@@ -98,7 +101,7 @@ endpoints:
       <<: *searchResult
 
   resources:
-    path: /submissions?apikey=%s&display_links=true&display_context=false&display=ontology,description,URI,released,modificationDate,alternative,version,status,versionIRI,hasLicense,contact,hasCreator,identifier,keyword,naturalLanguage,publisher,homepage,hasDomain,accrualMethod,accrualPeriodicity,publication,hasContributor,coverage,hasFormat,copyrightHolder,competencyQuestion,wasGeneratedBy,includedInDataCatalog,ontologyRelatedTo,usedOntologyEngineeringTool,keywords,obsolete,pullLocation&lang=en
+    path: /submissions?apikey=%s&display_links=true&display_context=false&display=ontology,description,URI,released,modificationDate,alternative,version,status,versionIRI,hasLicense,contact,hasCreator,identifier,keyword,naturalLanguage,publisher,homepage,hasDomain,accrualMethod,accrualPeriodicity,publication,hasContributor,coverage,hasFormat,hasOntologyLanguage,hasFormalityLevel,isOfType,copyrightHolder,competencyQuestion,wasGeneratedBy,includedInDataCatalog,ontologyRelatedTo,usedOntologyEngineeringTool,keywords,obsolete,pullLocation&lang=en
     responseMapping:
       nestedJson: collection
       <<: *artefact

@@ -49,7 +49,12 @@ public class ArtefactsService extends AbstractEndpointService {
         try {
             return
                     findAllArtefacts(database, params, collectionId, currentUser, accessor)
-                            .thenApply(data -> filterByCategories(data, params.getCategories()))
+                            .thenApply(data -> filterByField(data, "subject", params.getCategories()))
+                            .thenApply(data -> filterByField(data, "group", params.getGroups()))
+                            .thenApply(data -> filterByField(data, "format", params.getFormat()))
+                            .thenApply(data -> filterByField(data, "language", params.getNaturalLanguages()))
+                            .thenApply(data -> filterByField(data, "formalityLevel", params.getFormalityLevels()))
+                            .thenApply(data -> filterByField(data, "ontologyType", params.getOntologyTypes()))
                             .thenApply(this::deduplicateArtefacts)
                             .thenApply(data -> transformJsonLd(data, params))
                             .thenApply(data -> transformForTargetDbSchema(data, effectiveTargetSchema(params.getTargetDbSchema()), endpoint)).get();
@@ -92,7 +97,7 @@ public class ArtefactsService extends AbstractEndpointService {
         String endpoint = "resources";
         return findAllArtefacts(database, params, null, null, accessor)
                 .thenApply(data -> filterOutByQuery(query, data))
-                .thenApply(data -> filterByCategories(data, params.getCategories()))
+                .thenApply(data -> filterByField(data, "subject", params.getCategories()))
                 .thenApply(this::deduplicateArtefacts)
                 .thenApply(data -> reIndexResults(query, data, params.getLang()))
                 .thenApply(x -> transformJsonLd(x, params))
@@ -117,9 +122,10 @@ public class ArtefactsService extends AbstractEndpointService {
         return data;
     }
 
-    private AggregatedApiResponse filterByCategories(AggregatedApiResponse data, String categoriesParam) {
-        if (categoriesParam == null || categoriesParam.isEmpty()) return data;
-        Set<String> wanted = Arrays.stream(categoriesParam.split(","))
+    // (param vide ? découpe CSV ? OntoPortal ) et filtre la liste
+    private AggregatedApiResponse filterByField(AggregatedApiResponse data, String field, String csvValues) {
+        if (csvValues == null || csvValues.isEmpty()) return data;
+        Set<String> wanted = Arrays.stream(csvValues.split(","))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .map(String::toLowerCase)
@@ -127,26 +133,36 @@ public class ArtefactsService extends AbstractEndpointService {
         if (wanted.isEmpty()) return data;
 
         List<Map<String, Object>> filtered = data.getCollection().stream()
-                .filter(item -> !ontoPortalUtil.isOntoPortalItem(item) || itemMatchesCategories(item, wanted))
+                .filter(item -> !ontoPortalUtil.isOntoPortalItem(item) || fieldMatches(item.get(field), wanted))
                 .collect(Collectors.toList());
         data.setCollection(filtered);
         data.setTotalCount(filtered.size());
         return data;
     }
 
-    @SuppressWarnings("unchecked")
-    private boolean itemMatchesCategories(Map<String, Object> item, Set<String> wanted) {
-        Object subject = item.get("subject");
-        if (!(subject instanceof List)) return false;
-        for (Object s : (List<Object>) subject) {
-            if (s == null) continue;
-            String url = s.toString().toLowerCase();
-            for (String w : wanted) {
-                if (url.endsWith("/categories/" + w) || url.contains(w)) return true;
+    // handle a field that is single value or a list of values pour décide comment lire le champ
+    private boolean fieldMatches(Object value, Set<String> wanted) {
+        if (value == null) return false;
+        if (value instanceof List) {
+            for (Object v : (List<?>) value) {
+                if (v != null && valueMatches(v.toString(), wanted)) return true;
             }
+            return false;
+        }
+        return valueMatches(value.toString(), wanted);
+    }
+
+    // match a URI value on its full form (its last path segment, or a substring )
+    private boolean valueMatches(String raw, Set<String> wanted) {
+        String v = raw.toLowerCase();
+        int slash = v.lastIndexOf('/');
+        String last = slash >= 0 ? v.substring(slash + 1) : v;
+        for (String w : wanted) {
+            if (v.equals(w) || last.equals(w) || v.contains(w)) return true;
         }
         return false;
     }
+
 
     private AggregatedApiResponse filterOutByQuery(String query, AggregatedApiResponse data) {
         if (query == null || query.isEmpty()) {
