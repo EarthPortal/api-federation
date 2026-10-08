@@ -46,6 +46,27 @@ public class CommonRequestParams {
     @Parameter(name = "categories", in = ParameterIn.QUERY, description = "Filter results by ontology categories (comma separated)")
     private String categories = "";
 
+    // Ontology-selector facets: only exposed on /artefacts
+    @QueryParam("groups")
+    @Parameter(hidden = true)
+    private String groups = "";
+
+    @QueryParam("format")
+    @Parameter(hidden = true)
+    private String format = "";
+
+    @QueryParam("naturalLanguages")
+    @Parameter(hidden = true)
+    private String naturalLanguages = "";
+
+    @QueryParam("formalityLevels")
+    @Parameter(hidden = true)
+    private String formalityLevels = "";
+
+    @QueryParam("ontologyTypes")
+    @Parameter(hidden = true)
+    private String ontologyTypes = "";
+
 
     public List<String> getDisplay() {
         List<String> result = new ArrayList<>();
