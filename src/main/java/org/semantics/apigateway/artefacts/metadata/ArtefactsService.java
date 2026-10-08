@@ -50,6 +50,11 @@ public class ArtefactsService extends AbstractEndpointService {
             return
                     findAllArtefacts(database, params, collectionId, currentUser, accessor)
                             .thenApply(data -> filterByCategories(data, params.getCategories()))
+                            .thenApply(data -> filterByField(data, "group", params.getGroups()))
+                            .thenApply(data -> filterByField(data, "format", params.getFormat()))
+                            .thenApply(data -> filterByField(data, "language", params.getNaturalLanguages()))
+                            .thenApply(data -> filterByField(data, "formalityLevel", params.getFormalityLevels()))
+                            .thenApply(data -> filterByField(data, "ontologyType", params.getOntologyTypes()))
                             .thenApply(this::deduplicateArtefacts)
                             .thenApply(data -> transformJsonLd(data, params))
                             .thenApply(data -> transformForTargetDbSchema(data, effectiveTargetSchema(params.getTargetDbSchema()), endpoint)).get();
@@ -132,6 +137,48 @@ public class ArtefactsService extends AbstractEndpointService {
         data.setCollection(filtered);
         data.setTotalCount(filtered.size());
         return data;
+    }
+
+    // Generic facet filter used by the ontology selector (groups, format, language, formality level, ontology type).
+    // Non-OntoPortal items are kept as-is since these facets are OntoPortal-specific.
+    private AggregatedApiResponse filterByField(AggregatedApiResponse data, String field, String csvValues) {
+        if (csvValues == null || csvValues.isEmpty()) return data;
+        Set<String> wanted = Arrays.stream(csvValues.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(String::toLowerCase)
+                .collect(Collectors.toSet());
+        if (wanted.isEmpty()) return data;
+
+        List<Map<String, Object>> filtered = data.getCollection().stream()
+                .filter(item -> !ontoPortalUtil.isOntoPortalItem(item) || fieldMatches(item.get(field), wanted))
+                .collect(Collectors.toList());
+        data.setCollection(filtered);
+        data.setTotalCount(filtered.size());
+        return data;
+    }
+
+    private boolean fieldMatches(Object value, Set<String> wanted) {
+        if (value == null) return false;
+        if (value instanceof List) {
+            for (Object v : (List<?>) value) {
+                if (v != null && valueMatches(v.toString(), wanted)) return true;
+            }
+            return false;
+        }
+        return valueMatches(value.toString(), wanted);
+    }
+
+    // Values are often URIs (e.g. .../groups/ACTRIS, .../iso639-1/en, ...#Vocabulary).
+    // Match on the full value, its last path segment, or a substring, all case-insensitive.
+    private boolean valueMatches(String raw, Set<String> wanted) {
+        String v = raw.toLowerCase();
+        int slash = v.lastIndexOf('/');
+        String last = slash >= 0 ? v.substring(slash + 1) : v;
+        for (String w : wanted) {
+            if (v.equals(w) || last.equals(w) || v.contains(w)) return true;
+        }
+        return false;
     }
 
     @SuppressWarnings("unchecked")

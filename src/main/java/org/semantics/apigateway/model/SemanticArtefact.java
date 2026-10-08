@@ -27,6 +27,11 @@ public class SemanticArtefact extends AggregatedResourceBody {
     private String coverage;
     private List<String> hasFormat;
 
+    // Ontology-selector facets
+    private String format;
+    private String formalityLevel;
+    private String ontologyType;
+
 
     @ContextUri("dcat")
     private List<String> keywords;
