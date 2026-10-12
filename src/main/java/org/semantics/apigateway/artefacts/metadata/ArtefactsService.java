@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -56,6 +57,7 @@ public class ArtefactsService extends AbstractEndpointService {
                             .thenApply(data -> filterByField(data, "formalityLevel", params.getFormalityLevels()))
                             .thenApply(data -> filterByField(data, "ontologyType", params.getOntologyTypes()))
                             .thenApply(this::deduplicateArtefacts)
+                            .thenApply(this::sortByLabel)
                             .thenApply(data -> transformJsonLd(data, params))
                             .thenApply(data -> transformForTargetDbSchema(data, effectiveTargetSchema(params.getTargetDbSchema()), endpoint)).get();
         } catch (InterruptedException | ExecutionException e) {
@@ -107,6 +109,17 @@ public class ArtefactsService extends AbstractEndpointService {
     private AggregatedApiResponse deduplicateArtefacts(AggregatedApiResponse data) {
         data.setCollection(deduplicationService.deduplicate(data.getCollection()));
         data.setTotalCount(data.getCollection().size());
+        return data;
+    }
+
+    private AggregatedApiResponse sortByLabel(AggregatedApiResponse data) {
+        List<Map<String, Object>> collection = data.getCollection();
+        if (collection == null) return data;
+        collection.sort(Comparator.comparing((Map<String, Object> item) -> {
+            Object label = item.get("label");
+            return label == null ? "" : label.toString().toLowerCase();
+        }));
+        data.setCollection(collection);
         return data;
     }
 
