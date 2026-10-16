@@ -68,9 +68,9 @@ models:
     accessRights: ontology->viewingRestriction
     administeredBy: ontology->administeredBy
     group: ontology->group
-    format: hasOntologyLanguage
-    formalityLevel: hasFormalityLevel
-    ontologyType: isOfType
+    hasOntologyLanguage: hasOntologyLanguage
+    hasFormalityLevel: hasFormalityLevel
+    isOfType: isOfType
   term: &term
     label: prefLabel|label
     iri: "@id"
