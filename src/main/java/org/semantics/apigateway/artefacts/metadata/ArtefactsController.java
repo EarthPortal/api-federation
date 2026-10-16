@@ -38,26 +38,26 @@ public class ArtefactsController {
             @Parameter(description = "Filter results by ontology categories ")
             @RequestParam(required = false, defaultValue = "") String categories,
             @Parameter(description = "Filter results by ontology groups")
-            @RequestParam(required = false, defaultValue = "") String groups,
+            @RequestParam(required = false, defaultValue = "") String group,
             @Parameter(description = "Filter results by ontology format / language, e.g. OWL, SKOS, OBO ")
-            @RequestParam(required = false, defaultValue = "") String format,
+            @RequestParam(required = false, defaultValue = "") String hasOntologyLanguage,
             @Parameter(description = "Filter results by the ontology's natural languages, e.g. en, fr ")
-            @RequestParam(required = false, defaultValue = "") String naturalLanguages,
+            @RequestParam(required = false, defaultValue = "") String naturalLanguage,
             @Parameter(description = "Filter results by formality level ")
-            @RequestParam(required = false, defaultValue = "") String formalityLevels,
+            @RequestParam(required = false, defaultValue = "") String hasFormalityLevel,
             @Parameter(description = "Filter results by ontology type ")
-            @RequestParam(required = false, defaultValue = "") String ontologyTypes,
+            @RequestParam(required = false, defaultValue = "") String isOfType,
             @Parameter(description = "Collection id to browse terminologies in", hidden = true)
             @RequestParam(required = false) String collectionId
     ) throws ExecutionException, InterruptedException {
         CommonRequestParams params = new CommonRequestParams();
         params.setTargetDbSchema(targetDbSchema);
         params.setCategories(categories);
-        params.setGroups(groups);
-        params.setFormat(format);
-        params.setNaturalLanguages(naturalLanguages);
-        params.setFormalityLevels(formalityLevels);
-        params.setOntologyTypes(ontologyTypes);
+        params.setGroup(group);
+        params.setHasOntologyLanguage(hasOntologyLanguage);
+        params.setNaturalLanguage(naturalLanguage);
+        params.setHasFormalityLevel(hasFormalityLevel);
+        params.setIsOfType(isOfType);
         User user = authService.tryGetCurrentUser();
         return this.artefactsService.getArtefacts(database, params, collectionId, user, null);
     }

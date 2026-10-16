@@ -47,25 +47,25 @@ public class CommonRequestParams {
     private String categories = "";
 
     // Ontology-selector facets: only exposed on /artefacts
-    @QueryParam("groups")
+    @QueryParam("group")
     @Parameter(hidden = true)
-    private String groups = "";
+    private String group = "";
 
-    @QueryParam("format")
+    @QueryParam("hasOntologyLanguage")
     @Parameter(hidden = true)
-    private String format = "";
+    private String hasOntologyLanguage = "";
 
-    @QueryParam("naturalLanguages")
+    @QueryParam("naturalLanguage")
     @Parameter(hidden = true)
-    private String naturalLanguages = "";
+    private String naturalLanguage = "";
 
-    @QueryParam("formalityLevels")
+    @QueryParam("hasFormalityLevel")
     @Parameter(hidden = true)
-    private String formalityLevels = "";
+    private String hasFormalityLevel = "";
 
-    @QueryParam("ontologyTypes")
+    @QueryParam("isOfType")
     @Parameter(hidden = true)
-    private String ontologyTypes = "";
+    private String isOfType = "";
 
 
     public List<String> getDisplay() {
