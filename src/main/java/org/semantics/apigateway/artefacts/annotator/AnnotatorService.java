@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -34,10 +35,14 @@ public class AnnotatorService extends AbstractEndpointService {
         this.ontoPortalUtil = ontoPortalUtil;
     }
 
-    public Object performAnnotation(String database, String text, String ontologies, User currentUser) {
+    public Object performAnnotation(String database, String text, String ontologies, boolean expandMappings, boolean excludeNumbers, boolean excludeSynonyms, User currentUser) {
         String endpoint = "annotator";
+        text = removeSpecialChars(text);
         ApiAccessor accessor = initAccessor(database, endpoint, null);
         accessor = applyOntologies(accessor, ontologies);
+        accessor = applyFlag(accessor, "expand_mappings", expandMappings);
+        accessor = applyFlag(accessor, "exclude_numbers", excludeNumbers);
+        accessor = applyFlag(accessor, "exclude_synonyms", excludeSynonyms);
         try {
             Map<String, ApiResponse> responses = accessor.get(text).get();
             List<Object> annotations = new ArrayList<>();
@@ -49,7 +54,8 @@ public class AnnotatorService extends AbstractEndpointService {
                 }
             }
             Map<String, String> pullLocations = fetchPullLocations(database);
-            return mergeAnnotations(annotations, pullLocations);
+            List<Object> merged = mergeAnnotations(annotations, pullLocations);
+            return buildResponse(merged);
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
             return null;
@@ -174,6 +180,54 @@ public class AnnotatorService extends AbstractEndpointService {
         return entry;
     }
 
+    private Map<String, Object> buildResponse(List<Object> collection) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("totalCount", collection.size());
+        response.put("countByPortal", countByPortal(collection));
+        response.put("collection", collection);
+        return response;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Integer> countByPortal(List<Object> collection) {
+        Set<String> portals = ontoPortalUtil.getOntoPortalPortals();
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        for (Object obj : collection) {
+            if (!(obj instanceof Map)) continue;
+            Map<String, Object> item = (Map<String, Object>) obj;
+            Set<String> itemPortals = new LinkedHashSet<>();
+            addPortal(itemPortals, ontologyUrl(item), portals);
+            Object foundIn = item.get("found_in");
+            if (foundIn instanceof List) {
+                for (Object entry : (List<?>) foundIn) {
+                    if (entry instanceof Map) {
+                        Object ontology = ((Map<String, Object>) entry).get("ontology");
+                        if (ontology != null) addPortal(itemPortals, ontology.toString(), portals);
+                    }
+                }
+            }
+            for (String portal : itemPortals) counts.merge(portal, 1, Integer::sum);
+        }
+        return counts;
+    }
+
+    private void addPortal(Set<String> accumulator, String url, Set<String> portals) {
+        if (url == null) return;
+        String lower = url.toLowerCase();
+        for (String portal : portals) {
+            if (lower.contains(portal)) {
+                accumulator.add(portal);
+                return;
+            }
+        }
+    }
+
+    private String removeSpecialChars(String text) {
+        if (text == null) return null;
+        if (text.matches("^[a-zA-Z0-9\\s]*$")) return text;
+        return text.replaceAll("[^\\w\\s]", "");
+    }
+
     private ApiAccessor applyOntologies(ApiAccessor accessor, String ontologies) {
         if (ontologies == null || ontologies.isEmpty()) {
             return accessor;
@@ -182,6 +236,19 @@ public class AnnotatorService extends AbstractEndpointService {
         accessor.getUrls().forEach((url, cfg) -> {
             String sep = url.contains("?") ? "&" : "?";
             updated.put(url + sep + "ontologies=" + ontologies, cfg);
+        });
+        accessor.setUrls(updated);
+        return accessor;
+    }
+
+    private ApiAccessor applyFlag(ApiAccessor accessor, String name, boolean value) {
+        if (!value) {
+            return accessor;
+        }
+        Map<String, UrlConfig> updated = new LinkedHashMap<>();
+        accessor.getUrls().forEach((url, cfg) -> {
+            String sep = url.contains("?") ? "&" : "?";
+            updated.put(url + sep + name + "=true", cfg);
         });
         accessor.setUrls(updated);
         return accessor;
