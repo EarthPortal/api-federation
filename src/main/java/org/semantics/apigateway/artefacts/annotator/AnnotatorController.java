@@ -31,9 +31,15 @@ public class AnnotatorController {
             @Parameter(description = "Which source to query (e.g. earthportal).", example = "earthportal")
             @RequestParam String database,
             @Parameter(description = "Restrict to these ontology acronyms (comma-separated). Empty = all ontologies of the source.", example = "ENVTHES")
-            @RequestParam(required = false, defaultValue = "") String ontologies
+            @RequestParam(required = false, defaultValue = "") String ontologies,
+            @Parameter(description = "Expand the mappings of the annotated classes.")
+            @RequestParam(name = "expand_mappings", required = false, defaultValue = "false") boolean expandMappings,
+            @Parameter(description = "Exclude numbers from the annotations.")
+            @RequestParam(name = "exclude_numbers", required = false, defaultValue = "false") boolean excludeNumbers,
+            @Parameter(description = "Exclude synonyms from the annotations.")
+            @RequestParam(name = "exclude_synonyms", required = false, defaultValue = "false") boolean excludeSynonyms
     ) {
         User user = authService.tryGetCurrentUser();
-        return annotatorService.performAnnotation(database, text, ontologies, user);
+        return annotatorService.performAnnotation(database, text, ontologies, expandMappings, excludeNumbers, excludeSynonyms, user);
     }
 }
