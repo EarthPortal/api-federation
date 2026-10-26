@@ -35,7 +35,7 @@ public class AnnotatorService extends AbstractEndpointService {
         this.ontoPortalUtil = ontoPortalUtil;
     }
 
-    public Object performAnnotation(String database, String text, String ontologies, boolean expandMappings, boolean excludeNumbers, boolean excludeSynonyms, User currentUser) {
+    public Object performAnnotation(String database, String text, String ontologies, boolean expandMappings, boolean excludeNumbers, boolean excludeSynonyms, String classHierarchyMaxLevel, User currentUser) {
         String endpoint = "annotator";
         text = removeSpecialChars(text);
         ApiAccessor accessor = initAccessor(database, endpoint, null);
@@ -43,6 +43,7 @@ public class AnnotatorService extends AbstractEndpointService {
         accessor = applyFlag(accessor, "expand_mappings", expandMappings);
         accessor = applyFlag(accessor, "exclude_numbers", excludeNumbers);
         accessor = applyFlag(accessor, "exclude_synonyms", excludeSynonyms);
+        accessor = applyParam(accessor, "class_hierarchy_max_level", classHierarchyMaxLevel);
         try {
             Map<String, ApiResponse> responses = accessor.get(text).get();
             List<Object> annotations = new ArrayList<>();
@@ -249,6 +250,19 @@ public class AnnotatorService extends AbstractEndpointService {
         accessor.getUrls().forEach((url, cfg) -> {
             String sep = url.contains("?") ? "&" : "?";
             updated.put(url + sep + name + "=true", cfg);
+        });
+        accessor.setUrls(updated);
+        return accessor;
+    }
+
+    private ApiAccessor applyParam(ApiAccessor accessor, String name, String value) {
+        if (value == null || value.isEmpty() || value.equalsIgnoreCase("none")) {
+            return accessor;
+        }
+        Map<String, UrlConfig> updated = new LinkedHashMap<>();
+        accessor.getUrls().forEach((url, cfg) -> {
+            String sep = url.contains("?") ? "&" : "?";
+            updated.put(url + sep + name + "=" + value, cfg);
         });
         accessor.setUrls(updated);
         return accessor;
