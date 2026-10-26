@@ -39,11 +39,15 @@ public class AnnotatorController {
             @RequestParam(name = "exclude_numbers", required = false, defaultValue = "false") boolean excludeNumbers,
             @Parameter(description = "Exclude synonyms from the annotations.")
             @RequestParam(name = "exclude_synonyms", required = false, defaultValue = "false") boolean excludeSynonyms,
+            @Parameter(description = "Match whole words only.")
+            @RequestParam(name = "whole_word_only", required = false, defaultValue = "false") boolean wholeWordOnly,
+            @Parameter(description = "Keep only the longest match when annotations overlap.")
+            @RequestParam(name = "longest_only", required = false, defaultValue = "false") boolean longestOnly,
             @Parameter(description = "Include ancestors up to this level.",
                     schema = @Schema(allowableValues = {"None", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "All"}, defaultValue = "None"))
             @RequestParam(name = "class_hierarchy_max_level", required = false, defaultValue = "None") String classHierarchyMaxLevel
     ) {
         User user = authService.tryGetCurrentUser();
-        return annotatorService.performAnnotation(database, text, ontologies, expandMappings, excludeNumbers, excludeSynonyms, classHierarchyMaxLevel, user);
+        return annotatorService.performAnnotation(database, text, ontologies, expandMappings, excludeNumbers, excludeSynonyms, wholeWordOnly, longestOnly, classHierarchyMaxLevel, user);
     }
 }

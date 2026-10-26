@@ -35,7 +35,7 @@ public class AnnotatorService extends AbstractEndpointService {
         this.ontoPortalUtil = ontoPortalUtil;
     }
 
-    public Object performAnnotation(String database, String text, String ontologies, boolean expandMappings, boolean excludeNumbers, boolean excludeSynonyms, String classHierarchyMaxLevel, User currentUser) {
+    public Object performAnnotation(String database, String text, String ontologies, boolean expandMappings, boolean excludeNumbers, boolean excludeSynonyms, boolean wholeWordOnly, boolean longestOnly, String classHierarchyMaxLevel, User currentUser) {
         String endpoint = "annotator";
         text = removeSpecialChars(text);
         ApiAccessor accessor = initAccessor(database, endpoint, null);
@@ -43,6 +43,8 @@ public class AnnotatorService extends AbstractEndpointService {
         accessor = applyFlag(accessor, "expand_mappings", expandMappings);
         accessor = applyFlag(accessor, "exclude_numbers", excludeNumbers);
         accessor = applyFlag(accessor, "exclude_synonyms", excludeSynonyms);
+        accessor = applyFlag(accessor, "whole_word_only", wholeWordOnly);
+        accessor = applyFlag(accessor, "longest_only", longestOnly);
         accessor = applyParam(accessor, "class_hierarchy_max_level", classHierarchyMaxLevel);
         try {
             Map<String, ApiResponse> responses = accessor.get(text).get();
