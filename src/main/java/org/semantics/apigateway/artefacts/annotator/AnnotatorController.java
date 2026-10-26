@@ -2,6 +2,7 @@ package org.semantics.apigateway.artefacts.annotator;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.semantics.apigateway.model.user.User;
@@ -37,9 +38,12 @@ public class AnnotatorController {
             @Parameter(description = "Exclude numbers from the annotations.")
             @RequestParam(name = "exclude_numbers", required = false, defaultValue = "false") boolean excludeNumbers,
             @Parameter(description = "Exclude synonyms from the annotations.")
-            @RequestParam(name = "exclude_synonyms", required = false, defaultValue = "false") boolean excludeSynonyms
+            @RequestParam(name = "exclude_synonyms", required = false, defaultValue = "false") boolean excludeSynonyms,
+            @Parameter(description = "Include ancestors up to this level.",
+                    schema = @Schema(allowableValues = {"None", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "All"}, defaultValue = "None"))
+            @RequestParam(name = "class_hierarchy_max_level", required = false, defaultValue = "None") String classHierarchyMaxLevel
     ) {
         User user = authService.tryGetCurrentUser();
-        return annotatorService.performAnnotation(database, text, ontologies, expandMappings, excludeNumbers, excludeSynonyms, user);
+        return annotatorService.performAnnotation(database, text, ontologies, expandMappings, excludeNumbers, excludeSynonyms, classHierarchyMaxLevel, user);
     }
 }
