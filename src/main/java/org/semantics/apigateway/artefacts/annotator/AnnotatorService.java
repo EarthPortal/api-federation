@@ -38,8 +38,12 @@ public class AnnotatorService extends AbstractEndpointService {
     public Object performAnnotation(String database, String text, String ontologies, boolean expandMappings, boolean excludeNumbers, boolean excludeSynonyms, boolean wholeWordOnly, boolean longestOnly, String classHierarchyMaxLevel, User currentUser) {
         String endpoint = "annotator";
         text = removeSpecialChars(text);
+
+        SubmissionsIndex index = fetchSubmissions(database);
+
         ApiAccessor accessor = initAccessor(database, endpoint, null);
-        accessor = applyOntologies(accessor, ontologies);
+        accessor = dropUnreachablePortals(accessor, index);
+        accessor = applyOntologies(accessor, ontologies, index);
         accessor = applyFlag(accessor, "expand_mappings", expandMappings);
         accessor = applyFlag(accessor, "exclude_numbers", excludeNumbers);
         accessor = applyFlag(accessor, "exclude_synonyms", excludeSynonyms);
@@ -56,8 +60,7 @@ public class AnnotatorService extends AbstractEndpointService {
                     annotations.addAll((List<?>) collection);
                 }
             }
-            Map<String, String> pullLocations = fetchPullLocations(database);
-            List<Object> merged = mergeAnnotations(annotations, pullLocations);
+            List<Object> merged = mergeAnnotations(annotations, index.pullLocations);
             return buildResponse(merged);
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
@@ -66,30 +69,41 @@ public class AnnotatorService extends AbstractEndpointService {
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, String> fetchPullLocations(String database) {
-        Map<String, String> pullLocations = new HashMap<>();
+    private SubmissionsIndex fetchSubmissions(String database) {
+        SubmissionsIndex index = new SubmissionsIndex();
         try {
             ApiAccessor accessor = initAccessor(database, "resources", null);
             Map<String, ApiResponse> responses = accessor.get().get();
-            for (ApiResponse response : responses.values()) {
+            for (Map.Entry<String, ApiResponse> entry : responses.entrySet()) {
+                ApiResponse response = entry.getValue();
                 if (response == null || response.getResponseBody() == null) continue;
                 Object collection = response.getResponseBody().get("collection");
                 if (!(collection instanceof List)) continue;
+                String portalBase = baseUrl(entry.getKey());
+                if (portalBase != null) index.reachableBases.add(portalBase);
                 for (Object obj : (List<?>) collection) {
                     if (!(obj instanceof Map)) continue;
                     Map<String, Object> submission = (Map<String, Object>) obj;
                     Object ontology = submission.get("ontology");
+                    if (!(ontology instanceof Map)) continue;
+                    Object id = ((Map<String, Object>) ontology).get("@id");
+                    if (id == null) continue;
+                    String ontologyUrl = id.toString();
                     Object pullLocation = submission.get("pullLocation");
-                    if (ontology instanceof Map && pullLocation != null) {
-                        Object id = ((Map<String, Object>) ontology).get("@id");
-                        if (id != null) pullLocations.put(id.toString(), pullLocation.toString());
+                    if (pullLocation != null) {
+                        index.pullLocations.put(ontologyUrl, pullLocation.toString());
+                    }
+                    String base = baseUrl(ontologyUrl);
+                    String acronym = ontologyUrl.substring(ontologyUrl.lastIndexOf('/') + 1);
+                    if (base != null && !acronym.isEmpty()) {
+                        index.acronymsByBase.computeIfAbsent(base, k -> new LinkedHashSet<>()).add(acronym.toUpperCase());
                     }
                 }
             }
         } catch (Exception e) {
-            logger.warn("Could not fetch pullLocations for canonical selection: {}", e.getMessage());
+            logger.warn("Could not fetch submissions for canonical/routing: {}", e.getMessage());
         }
-        return pullLocations;
+        return index;
     }
 
     @SuppressWarnings("unchecked")
@@ -231,17 +245,65 @@ public class AnnotatorService extends AbstractEndpointService {
         return text.replaceAll("[^\\w\\s]", "");
     }
 
-    private ApiAccessor applyOntologies(ApiAccessor accessor, String ontologies) {
+    private ApiAccessor applyOntologies(ApiAccessor accessor, String ontologies, SubmissionsIndex index) {
         if (ontologies == null || ontologies.isEmpty()) {
+            return accessor;
+        }
+        List<String> requested = new ArrayList<>();
+        for (String a : ontologies.split(",")) {
+            String t = a.trim();
+            if (!t.isEmpty()) requested.add(t);
+        }
+        if (requested.isEmpty()) return accessor;
+
+        Map<String, UrlConfig> updated = new LinkedHashMap<>();
+        accessor.getUrls().forEach((url, cfg) -> {
+            Set<String> hosted = index.acronymsByBase.get(baseUrl(url));
+            if (hosted == null) {
+                String sep = url.contains("?") ? "&" : "?";
+                updated.put(url + sep + "ontologies=" + ontologies, cfg);
+                return;
+            }
+            List<String> forPortal = new ArrayList<>();
+            for (String acronym : requested) {
+                if (hosted.contains(acronym.toUpperCase())) forPortal.add(acronym);
+            }
+            if (forPortal.isEmpty()) return;
+            String sep = url.contains("?") ? "&" : "?";
+            updated.put(url + sep + "ontologies=" + String.join(",", forPortal), cfg);
+        });
+        accessor.setUrls(updated);
+        return accessor;
+    }
+
+    private String baseUrl(String url) {
+        if (url == null) return null;
+        int scheme = url.indexOf("://");
+        if (scheme < 0) return null;
+        int slash = url.indexOf('/', scheme + 3);
+        return slash < 0 ? url : url.substring(0, slash);
+    }
+
+    private ApiAccessor dropUnreachablePortals(ApiAccessor accessor, SubmissionsIndex index) {
+        if (index.reachableBases.isEmpty()) {
             return accessor;
         }
         Map<String, UrlConfig> updated = new LinkedHashMap<>();
         accessor.getUrls().forEach((url, cfg) -> {
-            String sep = url.contains("?") ? "&" : "?";
-            updated.put(url + sep + "ontologies=" + ontologies, cfg);
+            if (index.reachableBases.contains(baseUrl(url))) {
+                updated.put(url, cfg);
+            } else {
+                logger.info("Skipping unreachable portal (no submissions): {}", baseUrl(url));
+            }
         });
         accessor.setUrls(updated);
         return accessor;
+    }
+
+    private static class SubmissionsIndex {
+        final Map<String, String> pullLocations = new HashMap<>();
+        final Map<String, Set<String>> acronymsByBase = new HashMap<>();
+        final Set<String> reachableBases = new LinkedHashSet<>();
     }
 
     private ApiAccessor applyFlag(ApiAccessor accessor, String name, boolean value) {
