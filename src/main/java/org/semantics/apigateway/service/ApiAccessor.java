@@ -35,8 +35,8 @@ public class ApiAccessor {
     public ApiAccessor(CacheManager cacheManager) {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         this.cacheService = new CacheService(cacheManager);
-        factory.setConnectTimeout(60000);
-        factory.setReadTimeout(60000);
+        factory.setConnectTimeout(4000);
+        factory.setReadTimeout(30000);
         this.restTemplate = new RestTemplate(factory);
         this.urls = new HashMap<>();
         this.unDecodeUrl = false;
