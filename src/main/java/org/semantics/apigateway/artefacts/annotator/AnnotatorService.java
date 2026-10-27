@@ -22,13 +22,16 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 @Service
 public class AnnotatorService extends AbstractEndpointService {
 
     private static final Logger logger = LoggerFactory.getLogger(AnnotatorService.class);
+    private static final long UNREACHABLE_TTL_MS = 10 * 60 * 1000L; // 10 min
     private final OntoPortalUtil ontoPortalUtil;
+    private final Map<String, Long> unreachableUntil = new ConcurrentHashMap<>();
 
     public AnnotatorService(ConfigurationLoader configurationLoader, CacheManager cacheManager, JsonLdTransform jsonLdTransform, ResponseTransformerService responseTransformerService, OntoPortalUtil ontoPortalUtil) {
         super(configurationLoader, cacheManager, jsonLdTransform, responseTransformerService, RDFResource.class);
@@ -73,14 +76,33 @@ public class AnnotatorService extends AbstractEndpointService {
         SubmissionsIndex index = new SubmissionsIndex();
         try {
             ApiAccessor accessor = initAccessor(database, "resources", null);
+            long now = System.currentTimeMillis();
+            Map<String, UrlConfig> live = new LinkedHashMap<>();
+            accessor.getUrls().forEach((url, cfg) -> {
+                Long until = unreachableUntil.get(baseUrl(url));
+                if (until != null && until > now) {
+                    logger.info("Skipping portal in unreachable window: {}", baseUrl(url));
+                } else {
+                    live.put(url, cfg);
+                }
+            });
+            accessor.setUrls(live);
+
             Map<String, ApiResponse> responses = accessor.get().get();
             for (Map.Entry<String, ApiResponse> entry : responses.entrySet()) {
-                ApiResponse response = entry.getValue();
-                if (response == null || response.getResponseBody() == null) continue;
-                Object collection = response.getResponseBody().get("collection");
-                if (!(collection instanceof List)) continue;
                 String portalBase = baseUrl(entry.getKey());
-                if (portalBase != null) index.reachableBases.add(portalBase);
+                ApiResponse response = entry.getValue();
+                boolean ok = response != null && response.getResponseBody() != null
+                        && response.getResponseBody().get("collection") instanceof List;
+                if (!ok) {
+                    if (portalBase != null) unreachableUntil.put(portalBase, now + UNREACHABLE_TTL_MS);
+                    continue;
+                }
+                if (portalBase != null) {
+                    index.reachableBases.add(portalBase);
+                    unreachableUntil.remove(portalBase);
+                }
+                Object collection = response.getResponseBody().get("collection");
                 for (Object obj : (List<?>) collection) {
                     if (!(obj instanceof Map)) continue;
                     Map<String, Object> submission = (Map<String, Object>) obj;
