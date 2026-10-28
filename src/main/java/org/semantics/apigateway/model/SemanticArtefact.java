@@ -27,8 +27,6 @@ public class SemanticArtefact extends AggregatedResourceBody {
     private String coverage;
     private List<String> hasFormat;
     private String hasOntologyLanguage;
-    private String hasFormalityLevel;
-    private String isOfType;
 
 
     @ContextUri("dcat")
