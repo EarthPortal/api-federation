@@ -141,8 +141,22 @@ public class AnnotatorService extends AbstractEndpointService {
             String acronym = ontologyAcronym(item);
             if (acronym == null) continue;
             Object foundIn = index.foundInByAcronym.get(acronym.toUpperCase());
-            if (foundIn != null) item.put("found_in", foundIn);
+            if (foundIn instanceof List) item.put("found_in", toPortalLinks((List<?>) foundIn));
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Object> toPortalLinks(List<?> foundIn) {
+        List<Object> result = new ArrayList<>();
+        for (Object obj : foundIn) {
+            if (!(obj instanceof Map)) continue;
+            Map<String, Object> entry = (Map<String, Object>) obj;
+            Map<String, Object> link = new LinkedHashMap<>();
+            link.put("portal", entry.get("source_name"));
+            link.put("ui_link", entry.get("source_url"));
+            result.add(link);
+        }
+        return result;
     }
 
     private Map<String, Object> buildResponse(List<Object> collection) {
@@ -166,9 +180,9 @@ public class AnnotatorService extends AbstractEndpointService {
             if (foundIn instanceof List) {
                 for (Object entry : (List<?>) foundIn) {
                     if (entry instanceof Map) {
-                        Object source = ((Map<String, Object>) entry).get("source_name");
-                        if (source != null && portals.contains(source.toString().toLowerCase())) {
-                            itemPortals.add(source.toString().toLowerCase());
+                        Object portal = ((Map<String, Object>) entry).get("portal");
+                        if (portal != null && portals.contains(portal.toString().toLowerCase())) {
+                            itemPortals.add(portal.toString().toLowerCase());
                         }
                     }
                 }
