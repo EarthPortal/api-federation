@@ -63,6 +63,17 @@ public class ArtefactsService extends AbstractEndpointService {
         }
     }
 
+    public AggregatedApiResponse getDeduplicatedArtefacts(String database, CommonRequestParams params, User currentUser) {
+        try {
+            return findAllArtefacts(database, params, null, currentUser, null)
+                    .thenApply(this::deduplicateArtefacts)
+                    .get();
+        } catch (InterruptedException | ExecutionException e) {
+            logger.error(e.getMessage(), e);
+            return null;
+        }
+    }
+
 
     public Object getArtefact(String database, String id, CommonRequestParams params, ApiAccessor accessor) {
         String endpoint = "resource_details";
@@ -85,8 +96,6 @@ public class ArtefactsService extends AbstractEndpointService {
     private AggregatedApiResponse adjustSingleOrList(AggregatedApiResponse data) {
         int size = data.getCollection() != null ? data.getCollection().size() : 0;
         data.setTotalCount(size);
-        // 1 item after dedup
-        // multiple items (ontoPortal canonical + non ontoPortal) → list
         data.setList(size != 1);
         return data;
     }
@@ -132,7 +141,6 @@ public class ArtefactsService extends AbstractEndpointService {
         return data;
     }
 
-    // (param vide ? découpe CSV ? OntoPortal ) et filtre la liste
     private AggregatedApiResponse filterByField(AggregatedApiResponse data, String field, String csvValues) {
         if (csvValues == null || csvValues.isEmpty()) return data;
         Set<String> wanted = Arrays.stream(csvValues.split(","))
@@ -150,7 +158,6 @@ public class ArtefactsService extends AbstractEndpointService {
         return data;
     }
 
-    // handle a field that is single value or a list of values pour décide comment lire le champ
     private boolean fieldMatches(Object value, Set<String> wanted) {
         if (value == null) return false;
         if (value instanceof List) {
@@ -162,7 +169,6 @@ public class ArtefactsService extends AbstractEndpointService {
         return valueMatches(value.toString(), wanted);
     }
 
-    // match a URI value on its full form (its last path segment, or a substring )
     private boolean valueMatches(String raw, Set<String> wanted) {
         String v = raw.toLowerCase();
         int slash = v.lastIndexOf('/');
