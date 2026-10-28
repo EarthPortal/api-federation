@@ -37,10 +37,11 @@ public abstract class AbstractEndpointService {
 
     protected static final Logger logger = LoggerFactory.getLogger(AbstractEndpointService.class);
 
-    // Optional instance-wide default output schema applied when the client omits targetDbSchema
-    // (e.g. the OntoPortal-only federation instance defaults to the OntoPortal schema). Empty = no default.
     @Value("${gateway.default-target-db-schema:}")
     private String defaultTargetDbSchema;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private PortalHealthRegistry portalHealth;
 
     public AbstractEndpointService(ConfigurationLoader configurationLoader, CacheManager cacheManager, JsonLdTransform jsonLdTransform, ResponseTransformerService responseTransformerService, Class<? extends AggregatedResourceBody> clazz) {
         this.configurationLoader = configurationLoader;
@@ -52,7 +53,7 @@ public abstract class AbstractEndpointService {
     }
 
     public ApiAccessor getAccessor() {
-        return new ApiAccessor(this.cacheManager);
+        return new ApiAccessor(this.cacheManager, this.portalHealth);
     }
 
     /**

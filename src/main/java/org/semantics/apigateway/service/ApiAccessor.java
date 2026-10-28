@@ -10,6 +10,7 @@ import org.springframework.http.*;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URL;
@@ -30,11 +31,13 @@ public class ApiAccessor {
     private boolean unDecodeUrl;
     private CacheService cacheService;
     private boolean cacheEnabled;
+    private PortalHealthRegistry portalHealth;
 
     @Autowired
-    public ApiAccessor(CacheManager cacheManager) {
+    public ApiAccessor(CacheManager cacheManager, PortalHealthRegistry portalHealth) {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         this.cacheService = new CacheService(cacheManager);
+        this.portalHealth = portalHealth;
         factory.setConnectTimeout(4000);
         factory.setReadTimeout(30000);
         this.restTemplate = new RestTemplate(factory);
@@ -47,6 +50,20 @@ public class ApiAccessor {
         return urls;
     }
 
+    private Map<String, UrlConfig> reachableUrls() {
+        if (portalHealth == null) return this.urls;
+        Map<String, UrlConfig> reachable = new HashMap<>();
+        this.urls.forEach((url, cfg) -> {
+            String base = PortalHealthRegistry.baseUrl(url);
+            if (portalHealth.isUnreachable(base)) {
+                logger.info("Skipping portal in unreachable window: {}", base);
+            } else {
+                reachable.put(url, cfg);
+            }
+        });
+        return reachable.isEmpty() ? this.urls : reachable;
+    }
+
     @Async
     public CompletableFuture<Map<String, ApiResponse>> get() {
         return get("");
@@ -54,9 +71,10 @@ public class ApiAccessor {
 
     @Async
     public CompletableFuture<Map<String, ApiResponse>> get(String... query) {
-        ForkJoinPool customThreadPool = new ForkJoinPool(Math.max(this.urls.size(), 1));
+        Map<String, UrlConfig> targets = reachableUrls();
+        ForkJoinPool customThreadPool = new ForkJoinPool(Math.max(targets.size(), 1));
 
-        List<CompletableFuture<Map.Entry<String, ApiResponse>>> futures = this.urls.entrySet().stream()
+        List<CompletableFuture<Map.Entry<String, ApiResponse>>> futures = targets.entrySet().stream()
                 .map(config -> CompletableFuture.supplyAsync(() -> call(config.getKey(), config.getValue(), query), customThreadPool)
                         .thenApply(response -> Map.entry(config.getKey(), response))
                 )
@@ -138,6 +156,7 @@ public class ApiAccessor {
                 }
                 logger.info("Write cache for request URL: {} and query parameters: {}", url, query);
                 cacheService.write(fullUrl, result);
+                markReachable(url);
                 return result;
             } else {
                 logger.error("API {} Response Error: Status Code - {}", fullUrl, response.getStatusCode());
@@ -145,6 +164,9 @@ public class ApiAccessor {
             }
         } catch (Exception e) {
             logger.error("An error occurred while processing the request {}: {}", fullUrl, e.getMessage());
+            if (e instanceof ResourceAccessException) {
+                markUnreachable(url);
+            }
             return result;
         }
     }
@@ -180,5 +202,13 @@ public class ApiAccessor {
             return String.format(url, queries.toArray());
         }
 
+    }
+
+    private void markReachable(String url) {
+        if (portalHealth != null) portalHealth.markReachable(PortalHealthRegistry.baseUrl(url));
+    }
+
+    private void markUnreachable(String url) {
+        if (portalHealth != null) portalHealth.markUnreachable(PortalHealthRegistry.baseUrl(url));
     }
 }
