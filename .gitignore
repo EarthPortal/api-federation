@@ -49,3 +49,5 @@ _next/
 src/frontend/.env
 
 node_modules/
+
+.env
