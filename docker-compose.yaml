@@ -10,8 +10,9 @@ services:
       - all
     depends_on:
       - postgres
+    env_file:
+      - .env
     environment:
-      ONTOPORTAL_APIKEY: "put here APIKEY"
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/db
       SPRING_DATASOURCE_USERNAME: developer
       SPRING_DATASOURCE_PASSWORD: password
@@ -28,6 +29,8 @@ services:
       - all
     depends_on:
       - postgres
+    env_file:
+      - .env
     environment:
       DATABASES_CONFIG: "classpath:databases.ontoportal.json"
       OPENAPI_TITLE: "API Federation"
