@@ -101,6 +101,9 @@ endpoints:
   annotator:
     path: /annotator?text=%s&apikey=%s&include=prefLabel,synonym,definition
 
+  recommender:
+    path: /recommender?input=%s&apikey=%s
+
   resources:
     path: /submissions?apikey=%s&display_links=true&display_context=false&display=ontology,description,URI,released,modificationDate,alternative,version,status,versionIRI,hasLicense,contact,hasCreator,identifier,keyword,naturalLanguage,publisher,homepage,hasDomain,accrualMethod,accrualPeriodicity,publication,hasContributor,coverage,hasFormat,hasOntologyLanguage,copyrightHolder,competencyQuestion,wasGeneratedBy,includedInDataCatalog,ontologyRelatedTo,usedOntologyEngineeringTool,keywords,obsolete,pullLocation&lang=en
     responseMapping:
