@@ -9,7 +9,7 @@
 
   "links": {
 
-    "nextPage": "https://data.biodivportal.gfbio.dev/search?q=plant&apikey=${BIODIVPORTAL_API_KEY}&page=2",
+    "nextPage": "https://data.biodivportal.gfbio.dev/search?q=plant&apikey=00000000-0000-0000-0000-000000000000&page=2",
     "prevPage": null
 
   },

@@ -28,7 +28,7 @@
       "type": "ontoportal",
       "name": "ontoportal-astro",
       "url": "https://data.ontoportal-astro.eu",
-      "apiKey": "${AGROPORTAL_API_KEY}"
+      "apiKey": "${ONTOPORTAL_ASTRO_API_KEY}"
     }
   ]
 }
