@@ -1,5 +1,6 @@
 package org.semantics.apigateway.service.configuration;
 
+import com.fasterxml.jackson.core.io.JsonStringEncoder;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
@@ -25,6 +26,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @Getter
@@ -34,6 +39,7 @@ public class ConfigurationLoader {
     private final ResourceLoader resourceLoader;
 
     private static final Logger logger = LoggerFactory.getLogger(ConfigurationLoader.class);
+    private static final Pattern PLACEHOLDER = Pattern.compile("\\$\\{([A-Za-z0-9_.-]+)}");
     private List<DatabaseConfig> databaseConfigs;
     private List<ServiceConfig> serviceConfigs;
 
@@ -97,19 +103,36 @@ public class ConfigurationLoader {
     private List<DatabaseConfig> loadDatabaseConfigurations() throws IOException {
         logger.info("Loading databases configuration from: {}", databasesConfigLocation);
         Resource dataBasesConfigResource = resourceLoader.getResource(databasesConfigLocation);
-        String databaseConfigJson = StreamUtils.copyToString(dataBasesConfigResource.getInputStream(), StandardCharsets.UTF_8);
-
-        // Replace environment variables in the config
-        for (Map.Entry<String, Object> property : environment.getSystemEnvironment().entrySet()) {
-            String key = property.getKey();
-            String value = String.valueOf(property.getValue());
-            databaseConfigJson = databaseConfigJson.replace("${" + key + "}", value);
-        }
+        String databaseConfigJson = resolvePlaceholders(
+                StreamUtils.copyToString(dataBasesConfigResource.getInputStream(), StandardCharsets.UTF_8));
 
         ObjectMapper objectMapper = new ObjectMapper();
         DatabasesConfig dbConfig = objectMapper.readValue(databaseConfigJson, DatabasesConfig.class);
 
         return dbConfig.getDatabases();
+    }
+
+    // Replace ${VAR} placeholders (API keys) with values from the Spring environment (env vars, system properties,
+    // application.properties). Fail at startup if one is missing or blank, otherwise the source silently returns nothing.
+    private String resolvePlaceholders(String json) {
+        Matcher matcher = PLACEHOLDER.matcher(json);
+        StringBuilder resolved = new StringBuilder();
+        Set<String> missing = new TreeSet<>();
+        while (matcher.find()) {
+            String value = environment.getProperty(matcher.group(1), "").trim();
+            if (value.isEmpty()) {
+                missing.add(matcher.group(1));
+            }
+            String escaped = new String(JsonStringEncoder.getInstance().quoteAsString(value));
+            matcher.appendReplacement(resolved, Matcher.quoteReplacement(escaped));
+        }
+        matcher.appendTail(resolved);
+
+        if (!missing.isEmpty()) {
+            throw new IllegalStateException("Missing values for " + missing + " required by " + databasesConfigLocation
+                    + ". Set them as environment variables (see .env.sample).");
+        }
+        return resolved.toString();
     }
 
     public DatabaseConfig getDatabaseConfig(String database) {

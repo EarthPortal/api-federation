@@ -5,6 +5,9 @@
 Dockerfile
 .dockerignore
 
+# Exclude local secrets
+.env
+
 # Exclude git directory
 .git/
 
