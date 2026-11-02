@@ -47,8 +47,8 @@ public class RecommenderService extends AbstractEndpointService {
 
         ApiAccessor accessor = initAccessor(database, "recommender", null);
         accessor = routeToCanonical(accessor, ontologies, index);
-        accessor = applyParam(accessor, "input_type", inputType);
-        accessor = applyParam(accessor, "output_type", outputType);
+        accessor = applyParam(accessor, "input_type", inputTypeCode(inputType));
+        accessor = applyParam(accessor, "output_type", outputTypeCode(outputType));
         accessor = applyParam(accessor, "max_elements_set", maxElementsSet);
         accessor = applyParam(accessor, "wc", wc);
         accessor = applyParam(accessor, "wa", wa);
@@ -262,6 +262,18 @@ public class RecommenderService extends AbstractEndpointService {
             if (lower.contains(portal)) return portal;
         }
         return null;
+    }
+
+    private String inputTypeCode(String value) {
+        if (value == null) return "1";
+        String v = value.trim().toLowerCase();
+        return (v.equals("keywords") || v.equals("2")) ? "2" : "1";
+    }
+
+    private String outputTypeCode(String value) {
+        if (value == null) return "1";
+        String v = value.trim().toLowerCase();
+        return (v.equals("sets") || v.equals("2")) ? "2" : "1";
     }
 
     private String sanitize(String text) {

@@ -31,12 +31,12 @@ public class RecommenderController {
             @RequestParam String input,
             @Parameter(description = "Which source to query (e.g. earthportal).", example = "earthportal")
             @RequestParam String database,
-            @Parameter(description = "Type of input.",
-                    schema = @Schema(allowableValues = {"1", "2"}, defaultValue = "1"))
-            @RequestParam(name = "input_type", required = false, defaultValue = "1") String inputType,
-            @Parameter(description = "Type of output: 1 = ranked ontologies, 2 = ranked ontology sets.",
-                    schema = @Schema(allowableValues = {"1", "2"}, defaultValue = "1"))
-            @RequestParam(name = "output_type", required = false, defaultValue = "1") String outputType,
+            @Parameter(description = "Type of input: free text or list of keywords.",
+                    schema = @Schema(allowableValues = {"text", "keywords"}, defaultValue = "text"))
+            @RequestParam(name = "input_type", required = false, defaultValue = "text") String inputType,
+            @Parameter(description = "Type of output: ranked ontologies or ranked ontology sets.",
+                    schema = @Schema(allowableValues = {"ontologies", "sets"}, defaultValue = "ontologies"))
+            @RequestParam(name = "output_type", required = false, defaultValue = "ontologies") String outputType,
             @Parameter(description = "Restrict to these ontology acronyms (comma-separated). Empty = all ontologies of the source.", example = "ENVTHES")
             @RequestParam(required = false, defaultValue = "") String ontologies,
             @Parameter(description = "Maximum number of ontologies per set (only when output_type = 2).",
