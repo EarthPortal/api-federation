@@ -40,7 +40,7 @@ public class RecommenderService extends AbstractEndpointService {
         this.artefactsService = artefactsService;
     }
 
-    public Object performRecommendation(String database, String input, String inputType, String outputType, String ontologies, String maxElementsSet, String wc, String wa, String wd, String ws, User currentUser) {
+    public Object performRecommendation(String database, String input, String inputType, String outputType, String ontologies, String maxElementsSet, String coverageWeight, String acceptanceWeight, String detailWeight, String specializationWeight, User currentUser) {
         input = sanitize(input);
 
         OntologyIndex index = buildOntologyIndex(database, currentUser);
@@ -48,12 +48,16 @@ public class RecommenderService extends AbstractEndpointService {
         ApiAccessor accessor = initAccessor(database, "recommender", null);
         accessor = routeToCanonical(accessor, ontologies, index);
         accessor = applyParam(accessor, "input_type", inputTypeCode(inputType));
-        accessor = applyParam(accessor, "output_type", outputTypeCode(outputType));
-        accessor = applyParam(accessor, "max_elements_set", maxElementsSet);
-        accessor = applyParam(accessor, "wc", wc);
-        accessor = applyParam(accessor, "wa", wa);
-        accessor = applyParam(accessor, "wd", wd);
-        accessor = applyParam(accessor, "ws", ws);
+        String outputTypeCode = outputTypeCode(outputType);
+        accessor = applyParam(accessor, "output_type", outputTypeCode);
+
+        if (outputTypeCode.equals("2")) {
+            accessor = applyParam(accessor, "max_elements_set", maxElementsSet);
+        }
+        accessor = applyParam(accessor, "wc", coverageWeight);
+        accessor = applyParam(accessor, "wa", acceptanceWeight);
+        accessor = applyParam(accessor, "wd", detailWeight);
+        accessor = applyParam(accessor, "ws", specializationWeight);
         try {
             Map<String, ApiResponse> responses = accessor.get(input).get();
             List<Object> recommendations = new ArrayList<>();

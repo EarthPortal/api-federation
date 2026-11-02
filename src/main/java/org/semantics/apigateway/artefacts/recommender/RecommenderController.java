@@ -39,20 +39,20 @@ public class RecommenderController {
             @RequestParam(name = "output_type", required = false, defaultValue = "ontologies") String outputType,
             @Parameter(description = "Restrict to these ontology acronyms (comma-separated). Empty = all ontologies of the source.", example = "ENVTHES")
             @RequestParam(required = false, defaultValue = "") String ontologies,
-            @Parameter(description = "Maximum number of ontologies per set (only when output_type = 2).",
+            @Parameter(description = "Maximum number of ontologies per set. Used only when output_type = sets.",
                     schema = @Schema(allowableValues = {"2", "3", "4"}, defaultValue = "3"))
             @RequestParam(name = "max_elements_set", required = false, defaultValue = "3") String maxElementsSet,
             @Parameter(description = "Weight for the coverage score.")
-            @RequestParam(name = "wc", required = false, defaultValue = "0.55") String wc,
+            @RequestParam(name = "coverage_weight", required = false, defaultValue = "0.55") String coverageWeight,
             @Parameter(description = "Weight for the acceptance score.")
-            @RequestParam(name = "wa", required = false, defaultValue = "0.15") String wa,
+            @RequestParam(name = "acceptance_weight", required = false, defaultValue = "0.15") String acceptanceWeight,
             @Parameter(description = "Weight for the detail score.")
-            @RequestParam(name = "wd", required = false, defaultValue = "0.15") String wd,
+            @RequestParam(name = "detail_weight", required = false, defaultValue = "0.15") String detailWeight,
             @Parameter(description = "Weight for the specialization score.")
-            @RequestParam(name = "ws", required = false, defaultValue = "0.15") String ws
+            @RequestParam(name = "specialization_weight", required = false, defaultValue = "0.15") String specializationWeight
     ) {
         User user = authService.tryGetCurrentUser();
         return recommenderService.performRecommendation(database, input, inputType, outputType, ontologies,
-                maxElementsSet, wc, wa, wd, ws, user);
+                maxElementsSet, coverageWeight, acceptanceWeight, detailWeight, specializationWeight, user);
     }
 }
