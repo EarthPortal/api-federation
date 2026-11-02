@@ -4,6 +4,7 @@ import lombok.Getter;
 import org.semantics.apigateway.api.*;
 import org.semantics.apigateway.config.DatabaseConfig;
 import org.semantics.apigateway.service.configuration.ConfigurationLoader;
+import org.semantics.apigateway.util.OntoPortalUtil;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -16,24 +17,28 @@ import java.util.stream.Collectors;
 @Service
 @Getter
 public class ResponseTransformerService {
-  
+
   private final ConfigurationLoader configurationLoader;
-  
-  public ResponseTransformerService(ConfigurationLoader configurationLoader) {
+  private final JsonLdTransform jsonLdTransform;
+  private final OntoPortalUtil ontoPortalUtil;
+
+  public ResponseTransformerService(ConfigurationLoader configurationLoader, JsonLdTransform jsonLdTransform, OntoPortalUtil ontoPortalUtil) {
     this.configurationLoader = configurationLoader;
+    this.jsonLdTransform = jsonLdTransform;
+    this.ontoPortalUtil = ontoPortalUtil;
   }
   
   
   // Method to transform and structure results based on database
   public Map<String, Object> transformAndStructureResults(List<Map<String, Object>> combinedResults, String
-          targetDbSchema, String endpoint, boolean isList, boolean paginate, int page, long totalCount) throws IOException {
-    return transformJsonResponse(combinedResults, targetDbSchema, endpoint, isList, paginate, page, totalCount);
+          targetDbSchema, String endpoint, boolean isList, boolean paginate, int page, long totalCount, String lang) throws IOException {
+    return transformJsonResponse(combinedResults, targetDbSchema, endpoint, isList, paginate, page, totalCount, lang);
   }
   
   // Method to transform the JSON response from a database into a specific format
   private Map<String, Object> transformJsonResponse(List<Map<String, Object>> originalResponse, String targetDataBase,
                                                     String endpoint, boolean isList, boolean paginate, int page,
-                                                    long totalCount) {
+                                                    long totalCount, String lang) {
     DatabaseConfig databaseConfig = configurationLoader.getDatabaseConfig(targetDataBase);
     switch (targetDataBase) {
       case "ols": {
@@ -57,12 +62,13 @@ public class ResponseTransformerService {
         return olsTransformer.constructResponse(transformedResults, responseMapping.getKey(), isList, paginate, page, totalCount);
       }
       case "ontoportal":
-        OntoPortalTransformer ontoPortalTransformer = new OntoPortalTransformer();
+        Map<String, Object> contextConfig = databaseConfig.getServiceConfig().getContext();
+        OntoPortalTransformer ontoPortalTransformer = new OntoPortalTransformer(contextConfig, jsonLdTransform, lang, ontoPortalUtil);
         List<Map<String, Object>> transformedResultsOntoPortal = originalResponse.stream()
                 .map(x -> ontoPortalTransformer.transformItem(x, databaseConfig.getResponseMapping(endpoint)))
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
-        
+
         return ontoPortalTransformer.constructResponse(transformedResultsOntoPortal, null, false, paginate, page, totalCount);
       case "skosmos":
         SkosmosTransformer skosmosTransformer = new SkosmosTransformer();

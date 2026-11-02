@@ -17,31 +17,55 @@ import java.util.List;
 @Component
 public class CommonRequestParams {
 
-    @QueryParam("database")
-    @Parameter(
-            name = "database",
-            description = "Choose on which databases of backend type to run the search"
-    )
-    private String database = "";
-
     @QueryParam("targetDbSchema")
     @Parameter(name = "targetDbSchema", in = ParameterIn.QUERY, description = "Transform the response result to a specific schema")
     private TargetDbSchema targetDbSchema;
 
+    @Parameter(hidden = true)
     @QueryParam("showResponseConfiguration")
     private boolean showResponseConfiguration = false;
 
+    @Parameter(hidden = true)
     @QueryParam("displayEmptyValues")
     private boolean displayEmptyValues = true;
 
     @QueryParam("disableCache")
-    @Parameter(name = "disableCache", in = ParameterIn.QUERY, description = "Disable caching (not implemented yet)")
+    @Parameter(name = "disableCache", in = ParameterIn.QUERY, description = "Disable caching (not implemented yet)", hidden = true)
     private boolean disableCache = false;
+
+    @QueryParam("lang")
+    @Parameter(name="lang", in = ParameterIn.QUERY, description ="Language code to filter results (en, fr)")
+    private String lang;
 
     @QueryParam("display")
     @Parameter(name = "display", in = ParameterIn.QUERY, description = "Choose the attribute to display in the results (coma seperated)",
-            array = @ArraySchema(schema = @Schema(type = "string")))
+            array = @ArraySchema(schema = @Schema(type = "string")), hidden = true)
     private String display = "";
+
+    @QueryParam("categories")
+    @Parameter(name = "categories", in = ParameterIn.QUERY, description = "Filter results by ontology categories (comma separated)")
+    private String categories = "";
+
+    // Ontology-selector facets: only exposed on /artefacts
+    @QueryParam("group")
+    @Parameter(hidden = true)
+    private String group = "";
+
+    @QueryParam("hasOntologyLanguage")
+    @Parameter(hidden = true)
+    private String hasOntologyLanguage = "";
+
+    @QueryParam("naturalLanguage")
+    @Parameter(hidden = true)
+    private String naturalLanguage = "";
+
+    @QueryParam("hasFormalityLevel")
+    @Parameter(hidden = true)
+    private String hasFormalityLevel = "";
+
+    @QueryParam("isOfType")
+    @Parameter(hidden = true)
+    private String isOfType = "";
 
 
     public List<String> getDisplay() {

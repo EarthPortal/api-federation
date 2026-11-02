@@ -1,5 +1,7 @@
 package org.semantics.apigateway.artefacts.metadata;
 
+import org.apache.lucene.queryparser.classic.ParseException;
+import org.semantics.apigateway.artefacts.search.SearchLocalIndexerService;
 import org.semantics.apigateway.collections.CollectionService;
 import org.semantics.apigateway.collections.models.TerminologyCollection;
 import org.semantics.apigateway.model.CommonRequestParams;
@@ -11,33 +13,53 @@ import org.semantics.apigateway.service.ApiAccessor;
 import org.semantics.apigateway.service.JsonLdTransform;
 import org.semantics.apigateway.service.ResponseTransformerService;
 import org.semantics.apigateway.service.configuration.ConfigurationLoader;
+import org.semantics.apigateway.util.OntoPortalUtil;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 
 @Service
 public class ArtefactsService extends AbstractEndpointService {
 
     private final CollectionService collectionService;
+    private final SearchLocalIndexerService localIndexer;
+    private final ArtefactsDeduplicationService deduplicationService;
+    private final OntoPortalUtil ontoPortalUtil;
 
-    public ArtefactsService(ConfigurationLoader configurationLoader, CacheManager cacheManager, JsonLdTransform transform, ResponseTransformerService responseTransformerService, CollectionService collectionService) {
+    public ArtefactsService(ConfigurationLoader configurationLoader, CacheManager cacheManager, JsonLdTransform transform, ResponseTransformerService responseTransformerService, CollectionService collectionService, SearchLocalIndexerService localIndexer, ArtefactsDeduplicationService deduplicationService, OntoPortalUtil ontoPortalUtil) {
         super(configurationLoader, cacheManager, transform, responseTransformerService, SemanticArtefact.class);
         this.collectionService = collectionService;
+        this.localIndexer = localIndexer;
+        this.deduplicationService = deduplicationService;
+        this.ontoPortalUtil = ontoPortalUtil;
     }
 
 
-    public Object getArtefacts(CommonRequestParams params, String collectionId, User currentUser, ApiAccessor accessor) {
+    public Object getArtefacts(String database, CommonRequestParams params, String collectionId, User currentUser, ApiAccessor accessor) {
         String endpoint = "resources";
         try {
             return
-                    findAllArtefacts(params, collectionId, currentUser, accessor)
+                    findAllArtefacts(database, params, collectionId, currentUser, accessor)
+                            .thenApply(data -> filterByField(data, "subject", params.getCategories()))
+                            .thenApply(data -> filterByField(data, "group", params.getGroup()))
+                            .thenApply(data -> filterByField(data, "hasOntologyLanguage", params.getHasOntologyLanguage()))
+                            .thenApply(data -> filterByField(data, "language", params.getNaturalLanguage()))
+                            .thenApply(data -> filterByField(data, "hasFormalityLevel", params.getHasFormalityLevel()))
+                            .thenApply(data -> filterByField(data, "isOfType", params.getIsOfType()))
+                            .thenApply(this::deduplicateArtefacts)
+                            .thenApply(this::sortByLabel)
                             .thenApply(data -> transformJsonLd(data, params))
-                            .thenApply(data -> transformForTargetDbSchema(data, params.getTargetDbSchema(), endpoint)).get();
+                            .thenApply(data -> transformForTargetDbSchema(data, effectiveTargetSchema(params.getTargetDbSchema()), endpoint)).get();
         } catch (InterruptedException | ExecutionException e) {
             logger.error(e.getMessage(), e);
             return null;
@@ -45,18 +67,115 @@ public class ArtefactsService extends AbstractEndpointService {
     }
 
 
-    public Object getArtefact(String id, CommonRequestParams params, ApiAccessor accessor) {
-        return findUri(id, null, "resource_details", params, accessor);
+    public Object getArtefact(String database, String id, CommonRequestParams params, ApiAccessor accessor) {
+        String endpoint = "resource_details";
+        accessor = initAccessor(database, endpoint, accessor);
+        try {
+            return accessor.get(id)
+                    .thenApply(data -> this.transformApiResponses(data, endpoint))
+                    .thenApply(transformedData -> flattenResponseList(transformedData, params, null))
+                    .thenApply(this::deduplicateArtefacts)
+                    .thenApply(this::adjustSingleOrList)
+                    .thenApply(x -> transformJsonLd(x, params))
+                    .thenApply(data -> transformForTargetDbSchema(data, effectiveTargetSchema(params.getTargetDbSchema()), endpoint, false))
+                    .get();
+        } catch (InterruptedException | ExecutionException e) {
+            logger.error(e.getMessage(), e);
+            return null;
+        }
+    }
+
+    private AggregatedApiResponse adjustSingleOrList(AggregatedApiResponse data) {
+        int size = data.getCollection() != null ? data.getCollection().size() : 0;
+        data.setTotalCount(size);
+        // 1 item after dedup
+        // multiple items (ontoPortal canonical + non ontoPortal) → list
+        data.setList(size != 1);
+        return data;
     }
 
 
-    public Object searchMetadata(String query, CommonRequestParams params, ApiAccessor accessor) {
+    public Object searchMetadata(String database, String query, CommonRequestParams params, ApiAccessor accessor) {
         String endpoint = "resources";
-        return findAllArtefacts(params, null, null, accessor)
+        return findAllArtefacts(database, params, null, null, accessor)
                 .thenApply(data -> filterOutByQuery(query, data))
+                .thenApply(data -> filterByField(data, "subject", params.getCategories()))
+                .thenApply(this::deduplicateArtefacts)
+                .thenApply(data -> reIndexResults(query, data, params.getLang()))
                 .thenApply(x -> transformJsonLd(x, params))
-                .thenApply(data -> transformForTargetDbSchema(data, params.getTargetDbSchema(), endpoint));
+                .thenApply(data -> transformForTargetDbSchema(data, effectiveTargetSchema(params.getTargetDbSchema()), endpoint));
     }
+
+    private AggregatedApiResponse deduplicateArtefacts(AggregatedApiResponse data) {
+        data.setCollection(deduplicationService.deduplicate(data.getCollection()));
+        data.setTotalCount(data.getCollection().size());
+        return data;
+    }
+
+    private AggregatedApiResponse sortByLabel(AggregatedApiResponse data) {
+        List<Map<String, Object>> collection = data.getCollection();
+        if (collection == null) return data;
+        collection.sort(Comparator.comparing((Map<String, Object> item) -> {
+            Object label = item.get("label");
+            return label == null ? "" : label.toString().toLowerCase();
+        }));
+        data.setCollection(collection);
+        return data;
+    }
+
+    private AggregatedApiResponse reIndexResults(String query, AggregatedApiResponse data, String lang) {
+        if (query == null || query.isEmpty()) return data;
+        List<Map<String, Object>> collection = data.getCollection();
+        try {
+            collection = this.localIndexer.reIndexResults(query.replace("*", ""), collection, logger, lang);
+        } catch (IOException | ParseException e) {
+            throw new RuntimeException("Error during re-indexing results", e);
+        }
+        data.setCollection(collection);
+        return data;
+    }
+
+    // (param vide ? découpe CSV ? OntoPortal ) et filtre la liste
+    private AggregatedApiResponse filterByField(AggregatedApiResponse data, String field, String csvValues) {
+        if (csvValues == null || csvValues.isEmpty()) return data;
+        Set<String> wanted = Arrays.stream(csvValues.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(String::toLowerCase)
+                .collect(Collectors.toSet());
+        if (wanted.isEmpty()) return data;
+
+        List<Map<String, Object>> filtered = data.getCollection().stream()
+                .filter(item -> !ontoPortalUtil.isOntoPortalItem(item) || fieldMatches(item.get(field), wanted))
+                .collect(Collectors.toList());
+        data.setCollection(filtered);
+        data.setTotalCount(filtered.size());
+        return data;
+    }
+
+    // handle a field that is single value or a list of values pour décide comment lire le champ
+    private boolean fieldMatches(Object value, Set<String> wanted) {
+        if (value == null) return false;
+        if (value instanceof List) {
+            for (Object v : (List<?>) value) {
+                if (v != null && valueMatches(v.toString(), wanted)) return true;
+            }
+            return false;
+        }
+        return valueMatches(value.toString(), wanted);
+    }
+
+    // match a URI value on its full form (its last path segment, or a substring )
+    private boolean valueMatches(String raw, Set<String> wanted) {
+        String v = raw.toLowerCase();
+        int slash = v.lastIndexOf('/');
+        String last = slash >= 0 ? v.substring(slash + 1) : v;
+        for (String w : wanted) {
+            if (v.equals(w) || last.equals(w) || v.contains(w)) return true;
+        }
+        return false;
+    }
+
 
     private AggregatedApiResponse filterOutByQuery(String query, AggregatedApiResponse data) {
         if (query == null || query.isEmpty()) {
@@ -73,18 +192,27 @@ public class ArtefactsService extends AbstractEndpointService {
                     String iri = item.get("iri") == null ? "" : item.get("iri").toString();
                     boolean result = label.toLowerCase().contains(query.toLowerCase());
                     result = result || iri.toLowerCase().contains(query.toLowerCase());
+                    result = result || matchesDescriptions(item.get("descriptions"), query);
                     return result;
                 })
                 .toList();
 
         data.setCollection(filtered);
-
+        data.setTotalCount(filtered.size());
         return data;
     }
 
-    private CompletableFuture<AggregatedApiResponse> findAllArtefacts(CommonRequestParams params, String collectionId, User currentUser, ApiAccessor accessor) {
+    private boolean matchesDescriptions(Object descriptions, String query) {
+        if (!(descriptions instanceof List)) {
+            return false;
+        }
+        String q = query.toLowerCase();
+        return ((List<?>) descriptions).stream()
+                .anyMatch(d -> d != null && d.toString().toLowerCase().contains(q));
+    }
+
+    private CompletableFuture<AggregatedApiResponse> findAllArtefacts(String database, CommonRequestParams params, String collectionId, User currentUser, ApiAccessor accessor) {
         String endpoint = "resources";
-        String database = params.getDatabase();
         TerminologyCollection collection = collectionService.getCurrentUserCollection(collectionId, currentUser);
 
         accessor = initAccessor(database, endpoint, accessor);

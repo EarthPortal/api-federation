@@ -1,5 +1,27 @@
 name: ontoportal
 
+context:
+  vocab: "http://data.bioontology.org/metadata/"
+  fieldMappings:
+    prefLabel: label
+    synonym: synonyms
+    definition: descriptions
+    obsolete: obsolete
+  fieldOverrides:
+    definition: "http://www.w3.org/2004/02/skos/core#definition"
+  links:
+    self: "http://www.w3.org/2002/07/owl#Class"
+    ontology: "http://data.bioontology.org/metadata/Ontology"
+    children: "http://www.w3.org/2002/07/owl#Class"
+    parents: "http://www.w3.org/2002/07/owl#Class"
+    descendants: "http://www.w3.org/2002/07/owl#Class"
+    ancestors: "http://www.w3.org/2002/07/owl#Class"
+    instances: "http://data.bioontology.org/metadata/Instance"
+    tree: "http://www.w3.org/2002/07/owl#Class"
+    notes: "http://data.bioontology.org/metadata/Note"
+    mappings: "http://data.bioontology.org/metadata/Mapping"
+    ui: "http://www.w3.org/2002/07/owl#Class"
+
 pagination:
   type: page
   first: 1
@@ -30,7 +52,8 @@ models:
     keywords: keywords
     landingPage: homepage
     language: naturalLanguage
-    subject: hasDomain
+    subject: ontology->hasDomain
+    pullLocation: pullLocation
     accrualMethod: accrualMethod
     accrualPeriodicity: accrualPeriodicity
     bibliographicCitation: publication
@@ -43,6 +66,11 @@ models:
     createdWith: usedOntologyEngineeringTool
     obsolete: obsolete
     accessRights: ontology->viewingRestriction
+    administeredBy: ontology->administeredBy
+    group: ontology->group
+    hasOntologyLanguage: hasOntologyLanguage
+    hasFormalityLevel: hasFormalityLevel
+    isOfType: isOfType
   term: &term
     label: prefLabel|label
     iri: "@id"
@@ -58,18 +86,22 @@ models:
 
   searchResult: &searchResult
     <<: *term
+    matchType: matchType
+    ontologyType: ontologyType
+    labelByLang: prefLabelMap
 
 
 endpoints:
   search:
-    path: /search?q=%s&apikey=%s
+    path: /search?q=%s&pagesize=150&apikey=%s
     responseMapping:
       nestedJson: collection
       collectionFilter: ontologies
+      totalCount: totalCount
       <<: *searchResult
 
   resources:
-    path: /submissions?apikey=%s&display_links=true&display_context=false&display=ontology,description,URI,released,modificationDate,alternative,version,status,versionIRI,hasLicense,contact,hasCreator,identifier,keyword,naturalLanguage,publisher,homepage,hasDomain,accrualMethod,accrualPeriodicity,publication,hasContributor,coverage,hasFormat,copyrightHolder,competencyQuestion,wasGeneratedBy,includedInDataCatalog,ontologyRelatedTo,usedOntologyEngineeringTool,keywords,obsolete&lang=en
+    path: /submissions?apikey=%s&display_links=true&display_context=false&display=ontology,description,URI,released,modificationDate,alternative,version,status,versionIRI,hasLicense,contact,hasCreator,identifier,keyword,naturalLanguage,publisher,homepage,hasDomain,accrualMethod,accrualPeriodicity,publication,hasContributor,coverage,hasFormat,hasOntologyLanguage,hasFormalityLevel,isOfType,copyrightHolder,competencyQuestion,wasGeneratedBy,includedInDataCatalog,ontologyRelatedTo,usedOntologyEngineeringTool,keywords,obsolete,pullLocation&lang=en
     responseMapping:
       nestedJson: collection
       <<: *artefact

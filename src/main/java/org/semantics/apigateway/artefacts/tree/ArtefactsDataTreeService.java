@@ -29,53 +29,53 @@ public class ArtefactsDataTreeService extends AbstractEndpointService {
         super(configurationLoader, cacheManager, transform, responseTransformerService, RDFResource.class);
     }
 
-    public Object getRoots(String acronym, CommonRequestParams params, ApiAccessor accessor) {
+    public Object getRoots(String database, String acronym, CommonRequestParams params, ApiAccessor accessor) {
         if (acronym == null || acronym.isEmpty()) {
             return new AggregatedApiResponse();
         }
         String endpoint = Endpoints.concepts_roots.toString();
-        accessor = initAccessor(params.getDatabase(), endpoint, accessor);
-        return findAll(acronym, endpoint, params, accessor).thenApply(x -> {
+        accessor = initAccessor(database, endpoint, accessor);
+        return findAll(database, acronym, endpoint, params, accessor).thenApply(x -> {
             x.setCollection(sortChildren((List<Map<String, Object>>) x.getCollection()));
             return x;
         });
     }
 
-    public Object getChildren(String acronym, String uri, CommonRequestParams params, Integer page, ApiAccessor accessor) {
+    public Object getChildren(String database, String acronym, String uri, CommonRequestParams params, Integer page, ApiAccessor accessor) {
         if (acronym == null || acronym.isEmpty() || uri == null || uri.isEmpty()) {
             return Collections.EMPTY_LIST;
         }
 
         String endpoint = Endpoints.concepts_children.toString();
-        DatabaseConfig databaseConfig = configurationLoader.getConfigByName(params.getDatabase());
-        accessor = initAccessor(params.getDatabase(), endpoint, accessor);
+        DatabaseConfig databaseConfig = configurationLoader.getConfigByName(database);
+        accessor = initAccessor(database, endpoint, accessor);
         if (databaseConfig.isOls2()) {
             uri = URLEncoder.encode(URLEncoder.encode(uri)); // OLS2 requires URI double encoding
         }
-        return paginatedList(acronym, uri, endpoint, params, page, accessor);
+        return paginatedList(database, acronym, uri, endpoint, params, page, accessor);
     }
 
-    public Object getTree(String acronym, String uri, CommonRequestParams params, ApiAccessor accessor) {
+    public Object getTree(String database, String acronym, String uri, CommonRequestParams params, ApiAccessor accessor) {
         if (acronym == null || acronym.isEmpty() || uri == null || uri.isEmpty()) {
             return Collections.EMPTY_LIST;
         }
         String endpoint = Endpoints.concept_tree.toString();
-        DatabaseConfig databaseConfig = configurationLoader.getConfigByName(params.getDatabase());
-        accessor = initAccessor(params.getDatabase(), endpoint, accessor);
+        DatabaseConfig databaseConfig = configurationLoader.getConfigByName(database);
+        accessor = initAccessor(database, endpoint, accessor);
         String finalUri = uri;
         if (databaseConfig.isOls2()) {
             finalUri = URLEncoder.encode(URLEncoder.encode(uri)); // OLS2 requires URI double encoding
         }
 
-        return findAll(acronym, finalUri, endpoint, params, accessor)
-                .thenApply(data -> databaseConfig.isOls() ? buildOlsTree(data, acronym, uri, params) : data)
+        return findAll(database, acronym, finalUri, endpoint, params, accessor)
+                .thenApply(data -> databaseConfig.isOls() ? buildOlsTree(database, data, acronym, uri, params) : data)
                 .thenApply(data -> databaseConfig.isOntoPortal() ? transformAllNestedChildren(data, databaseConfig, endpoint) : data);
     }
 
-    private AggregatedApiResponse buildOlsTree(AggregatedApiResponse data, String acronym, String uri, CommonRequestParams params) {
+    private AggregatedApiResponse buildOlsTree(String database, AggregatedApiResponse data, String acronym, String uri, CommonRequestParams params) {
         List<Map<String, Object>> pathToRoot = data.getCollection();
         List<Map<String, Object>> cleanedPath = new ArrayList<>();
-        Map<String, Object> leafNode = findUri(acronym, uri, Endpoints.concept_details.toString(), params, null).getCollection().get(0);
+        Map<String, Object> leafNode = findUri(database, acronym, uri, Endpoints.concept_details.toString(), params, null).getCollection().get(0);
 
         for (Map<String, Object> child : pathToRoot) {
             if (child.get("iri").equals("http://www.w3.org/2002/07/owl#Thing")) {

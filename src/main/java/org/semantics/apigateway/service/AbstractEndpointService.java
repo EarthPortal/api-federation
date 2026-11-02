@@ -9,6 +9,7 @@ import org.semantics.apigateway.model.responses.*;
 import org.semantics.apigateway.service.configuration.ConfigurationLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 
@@ -36,6 +37,11 @@ public abstract class AbstractEndpointService {
 
     protected static final Logger logger = LoggerFactory.getLogger(AbstractEndpointService.class);
 
+    // Optional instance-wide default output schema applied when the client omits targetDbSchema
+    // (e.g. the OntoPortal-only federation instance defaults to the OntoPortal schema). Empty = no default.
+    @Value("${gateway.default-target-db-schema:}")
+    private String defaultTargetDbSchema;
+
     public AbstractEndpointService(ConfigurationLoader configurationLoader, CacheManager cacheManager, JsonLdTransform jsonLdTransform, ResponseTransformerService responseTransformerService, Class<? extends AggregatedResourceBody> clazz) {
         this.configurationLoader = configurationLoader;
         this.ontologyConfigs = configurationLoader.getDatabaseConfigs();
@@ -49,11 +55,33 @@ public abstract class AbstractEndpointService {
         return new ApiAccessor(this.cacheManager);
     }
 
-    protected AggregatedApiResponse transformForTargetDbSchema(AggregatedApiResponse data, TargetDbSchema targetDbSchemaEnum, String endpoint) {
-        return transformForTargetDbSchema(data, targetDbSchemaEnum, endpoint, true);
+    /**
+     * Returns the client-requested target schema, or the configured instance default
+     * ({@code gateway.default-target-db-schema}) when the client did not specify one.
+     */
+    protected TargetDbSchema effectiveTargetSchema(TargetDbSchema requested) {
+        if (requested != null) {
+            return requested;
+        }
+        if (defaultTargetDbSchema == null || defaultTargetDbSchema.isBlank()) {
+            return null;
+        }
+        return TargetDbSchema.valueOf(defaultTargetDbSchema);
     }
 
-    protected AggregatedApiResponse transformForTargetDbSchema(AggregatedApiResponse data, TargetDbSchema targetDbSchemaEnum, String endpoint, Boolean isList) {
+    protected AggregatedApiResponse transformForTargetDbSchema(AggregatedApiResponse data, TargetDbSchema targetDbSchemaEnum, String endpoint, String lang) {
+        return transformForTargetDbSchema(data, targetDbSchemaEnum, endpoint, true, lang);
+    }
+
+    protected AggregatedApiResponse transformForTargetDbSchema(AggregatedApiResponse data, TargetDbSchema targetDbSchemaEnum, String endpoint) {
+        return transformForTargetDbSchema(data, targetDbSchemaEnum, endpoint, true, null);
+    }
+
+    protected AggregatedApiResponse transformForTargetDbSchema(AggregatedApiResponse data, TargetDbSchema targetDbSchemaEnum, String endpoint, boolean isList) {
+        return transformForTargetDbSchema(data, targetDbSchemaEnum, endpoint, isList, null);
+    }
+
+    protected AggregatedApiResponse transformForTargetDbSchema(AggregatedApiResponse data, TargetDbSchema targetDbSchemaEnum, String endpoint, Boolean isList, String lang) {
         String targetDbSchema = targetDbSchemaEnum == null ? "" : targetDbSchemaEnum.toString();
 
         if (targetDbSchema != null && !targetDbSchema.isEmpty()) {
@@ -64,7 +92,7 @@ public abstract class AbstractEndpointService {
                 } else {
                     collections = (List<Map<String, Object>>) data;
                 }
-                Map<String, Object> transformedResults = responseTransformerService.transformAndStructureResults(collections, targetDbSchema, endpoint, isList, data.isPaginate(), data.getPage(), data.getTotalCount());
+                Map<String, Object> transformedResults = responseTransformerService.transformAndStructureResults(collections, targetDbSchema, endpoint, isList, data.isPaginate(), data.getPage(), data.getTotalCount(), lang);
                 logger.debug("Transformed results for database schema: {}", transformedResults);
                 AggregatedApiResponse transformedResponse = new AggregatedApiResponse();
                 transformedResponse.setCollection(Collections.singletonList(transformedResults));
@@ -77,7 +105,6 @@ public abstract class AbstractEndpointService {
             return data;
         }
     }
-
 
     protected Map<String, UrlConfig> buildUrls(String database, String endpoint) {
         String[] databases = (database == null || database.isEmpty()) ? new String[0] : database.split(",");
@@ -207,22 +234,12 @@ public abstract class AbstractEndpointService {
         List<Map<String, Object>> aggregatedCollections = data.stream()
                 .map(x -> x.getCollection(showResponseConfiguration, displayEmptyValues))
                 .flatMap(List::stream)
-                .sorted((m1, m2) -> {
-                    String label1 = (String) m1.getOrDefault("label", "");
-                    String label2 = (String) m2.getOrDefault("label", "");
-                    if (label1 == null) {
-                        label1 = "";
-                    }
-
-                    if (label2 == null) {
-                        label2 = "";
-                    }
-
-                    return label1.compareTo(label2);
-                })
                 .toList();
 
         aggregatedApiResponse.setCollection(aggregatedCollections);
+
+        long totalCount = aggregatedCollections.size();
+        aggregatedApiResponse.setTotalCount(totalCount);
 
         aggregatedApiResponse.setOriginalResponses(
                 data.stream().map(TransformedApiResponse::getOriginalResponse)
@@ -354,6 +371,23 @@ public abstract class AbstractEndpointService {
         return accessor;
     }
 
+    protected ApiAccessor applyLang(ApiAccessor accessor, String lang) {
+        if (lang == null || lang.isEmpty()) {
+            return accessor;
+        }
+        Map<String, UrlConfig> updated = new LinkedHashMap<>();
+        accessor.getUrls().forEach((url, cfg) -> {
+            if (url.contains("&lang=") || url.contains("?lang=")) {
+                updated.put(url, cfg);
+            } else {
+                String sep = url.contains("?") ? "&" : "?";
+                updated.put(url + sep + "lang=" + lang, cfg);
+            }
+        });
+        accessor.setUrls(updated);
+        return accessor;
+    }
+
     protected ApiAccessor applyCollection(ApiAccessor accessor, TerminologyCollection collection, String endpoint) {
         if (collection == null) {
             return accessor;
@@ -386,7 +420,7 @@ public abstract class AbstractEndpointService {
     public TransformedApiResponse selectResultsByDatabase(List<TransformedApiResponse> apiResponse, String
             database) {
         TransformedApiResponse a = null;
-        // TODO: update this to merge the results instead of returning only one the first one
+        // TODO: update this to merge the results instead of returning only one the first one  --> solve this issue
 
         if (database != null) {
             a = apiResponse.stream()
@@ -405,44 +439,44 @@ public abstract class AbstractEndpointService {
     }
 
 
-    protected Object paginatedList(String acronym, String uri, String endpoint, CommonRequestParams params,
+    protected Object paginatedList(String database, String acronym, String uri, String endpoint, CommonRequestParams params,
                                    Integer page, ApiAccessor accessor) {
 
-        String database = params.getDatabase();
         TargetDbSchema targetDbSchema = params.getTargetDbSchema();
         accessor = initAccessor(database, endpoint, accessor);
         List<String> ids = getRequestIds(accessor, acronym, uri);
         ids.add(page.toString());
+        final String db = database;
 
         return accessor.get(ids.toArray(new String[0]))
                 .thenApply(data -> this.transformApiResponses(data, endpoint, true))
-                .thenApply(data -> selectResultsByDatabase(data, database))
+                .thenApply(data -> selectResultsByDatabase(data, db))
                 .thenApply(x -> paginate(x, params, page))
                 .thenApply(x -> transformJsonLd(x, params))
                 .thenApply(data -> transformForTargetDbSchema(data, targetDbSchema, endpoint, true));
     }
 
-    protected Object paginatedList(String id, String endpoint, CommonRequestParams params, Integer
+    protected Object paginatedList(String database, String id, String endpoint, CommonRequestParams params, Integer
             page, ApiAccessor accessor) {
-        return paginatedList(id, null, endpoint, params, page, accessor);
+        return paginatedList(database, id, null, endpoint, params, page, accessor);
     }
 
 
-    protected CompletableFuture<AggregatedApiResponse> findAll(String acronym, String uri, String endpoint, CommonRequestParams params, ApiAccessor accessor) {
-        String database = params.getDatabase();
+    protected CompletableFuture<AggregatedApiResponse> findAll(String database, String acronym, String uri, String endpoint, CommonRequestParams params, ApiAccessor accessor) {
         accessor = initAccessor(database, endpoint, accessor);
         List<String> ids = getRequestIds(accessor, acronym, uri);
+        final String db = database;
 
         return accessor.get(ids.toArray(new String[0]))
                 .thenApply(data -> this.transformApiResponses(data, endpoint))
-                .thenApply(data -> selectResultsByDatabase(data, database))
+                .thenApply(data -> selectResultsByDatabase(data, db))
                 .thenApply(data -> listResponse(data, params))
                 .thenApply(x -> transformJsonLd(x, params));
     }
 
-    protected CompletableFuture<AggregatedApiResponse> findAll(String id, String endpoint, CommonRequestParams params, ApiAccessor
+    protected CompletableFuture<AggregatedApiResponse> findAll(String database, String id, String endpoint, CommonRequestParams params, ApiAccessor
             accessor) {
-        return findAll(id, null, endpoint, params, accessor);
+        return findAll(database, id, null, endpoint, params, accessor);
     }
 
     private List<String> getRequestIds(ApiAccessor accessor, String acronym, String uri) {
@@ -456,17 +490,17 @@ public abstract class AbstractEndpointService {
         return ids;
     }
 
-    protected AggregatedApiResponse findUri(String id, String uri, String endpoint, CommonRequestParams params, ApiAccessor
+    protected AggregatedApiResponse findUri(String database, String id, String uri, String endpoint, CommonRequestParams params, ApiAccessor
             accessor) {
-        String database = params.getDatabase();
         TargetDbSchema targetDbSchema = params.getTargetDbSchema();
         accessor = initAccessor(database, endpoint, accessor);
         List<String> ids = getRequestIds(accessor, id, uri);
+        final String db = database;
         try {
             return accessor.get(ids.toArray(new String[0]))
                     .thenApply(data -> this.transformApiResponses(data, endpoint))
                     .thenApply(x -> filterById(x, ids))
-                    .thenApply(data -> selectResultsByDatabase(data, database))
+                    .thenApply(data -> selectResultsByDatabase(data, db))
                     .thenApply(x -> singleResponse(x, params))
                     .thenApply(x -> transformJsonLd(x, params))
                     .thenApply(data -> transformForTargetDbSchema(data, targetDbSchema, endpoint, false))

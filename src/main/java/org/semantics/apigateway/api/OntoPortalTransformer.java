@@ -1,83 +1,254 @@
 package org.semantics.apigateway.api;
 
 import org.semantics.apigateway.config.ResponseMapping;
+import org.semantics.apigateway.service.JsonLdTransform;
+import org.semantics.apigateway.util.OntoPortalUtil;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 
 public class OntoPortalTransformer implements DatabaseTransformer {
+
+    private final Map<String, Object> contextConfig;
+    private final JsonLdTransform jsonLdTransform;
+    private final String lang;
+    private final OntoPortalUtil ontoPortalUtil;
+
+    public OntoPortalTransformer(Map<String, Object> contextConfig, JsonLdTransform jsonLdTransform, String lang, OntoPortalUtil ontoPortalUtil) {
+        this.contextConfig = contextConfig;
+        this.jsonLdTransform = jsonLdTransform;
+        this.lang = lang;
+        this.ontoPortalUtil = ontoPortalUtil;
+    }
+
     @Override
     public Map<String, Object> transformItem(Map<String, Object> item, ResponseMapping mapping) {
         if (item == null) {
             return null;
         }
 
-        Map<String, Object> transformedItem = new HashMap<>();
+        Map<String, Object> transformedItem = new LinkedHashMap<>();
 
-        // Check for null values before accessing properties
-        if (item.containsKey("@id") && item.get("@id") != null) {
-            transformedItem.put("iri", item.get("@id"));
+        String iri = getStringValue(item, "iri");
+        String label = getStringValue(item, "label");
+        String type = getStringValue(item, "type");
+        String ontology = getStringValue(item, "ontology");
+        String source = getStringValue(item, "source");
+        String sourceUrl = getStringValue(item, "source_url");
+        String backendType = getStringValue(item, "backend_type");
+
+        // Core fields
+        if (label != null) {
+            transformedItem.put("prefLabel", label);
         }
-        if (item.containsKey("label") && item.get("label") != null) {
-            transformedItem.put("prefLabel", item.get("label"));
+
+        Object labelByLang = item.get("labelByLang");
+        if (labelByLang instanceof Map && !((Map<?, ?>) labelByLang).isEmpty()) {
+            transformedItem.put("labelByLang", labelByLang);
         }
-        if (item.containsKey("ontology") && item.get("ontology") != null) {
-            transformedItem.put("@type", item.get("ontology"));
+
+        Object synonyms = item.get("synonyms");
+        if (synonyms != null && !(synonyms instanceof List && ((List<?>) synonyms).isEmpty())) {
+            transformedItem.put("synonym", synonyms);
         }
-        if (item.containsKey("synonym") && item.get("synonym") != null) {
-            transformedItem.put("synonym", item.get("synonym"));
+
+        Object definitions = item.get("descriptions");
+        if (definitions != null && !(definitions instanceof List && ((List<?>) definitions).isEmpty())) {
+            transformedItem.put("definition", definitions);
         }
-        if (item.containsKey("backend_type") && item.get("backend_type") != null) {
-            transformedItem.put("backend_type", item.get("backend_type"));
+
+        transformedItem.put("obsolete", item.getOrDefault("obsolete", false));
+
+        String matchType = getStringValue(item, "match_type");
+        if (matchType != null) {
+            transformedItem.put("matchType", matchType);
         }
-        if (item.containsKey("short_form") && item.get("short_form") != null) {
-            transformedItem.put("short_form", item.get("short_form"));
+
+        String ontologyType = getStringValue(item, "ontology_type");
+        if (ontologyType != null) {
+            transformedItem.put("ontologyType", ontologyType);
         }
-        if (item.containsKey("description") && item.get("description") != null) {
-            transformedItem.put("definition", item.get("description"));
+
+        String sourceName = getStringValue(item, "source_name");
+        if(sourceName != null){
+            transformedItem.put("source", sourceName);
         }
-        if (item.containsKey("source") && item.get("source") != null) {
-            transformedItem.put("source", item.get("source"));
-        }
-        if (item.containsKey("type") && item.get("type") != null) {
-            // the value of the key @type in OntoPortal is saved as an IRI
-            if (item.containsKey("backend_type") && String.valueOf(item.get("backend_type")).equals("ols")) {
-                if (item.get("type").equals("class")) {
-                    transformedItem.put("type", "http://www.w3.org/2002/07/owl#Class");
-                } else {
-                    transformedItem.put("type", item.get("type"));
-                }
-            } else {
-                transformedItem.put("type", item.get("type"));
+
+        Object categories = item.get("categories");
+
+        if (categories instanceof List && !((List<?>) categories).isEmpty() && "ontoportal".equalsIgnoreCase(backendType)) {
+            transformedItem.put("categories", categories);
+        } else {
+            Object subject = item.get("subject");
+            if (subject instanceof List && !((List<?>) subject).isEmpty()) {
+                transformedItem.put("categories", subject);
             }
         }
-        if (item.containsKey("annotations") && item.get("annotations") != null && item.get("annotations") instanceof Map) {
-            Map<String, List<String>> annotations = (Map<String, List<String>>) item.get("annotations");
-            annotations.forEach((annotationProperty, annotationValues) -> {
-                if (annotationValues != null && !annotationValues.isEmpty()) {
-                    transformedItem.put(annotationProperty, annotationValues);
-                }
-            });
+
+        Object foundIn = item.get("found_in");
+        if (foundIn instanceof List && shouldExposeFoundIn((List<?>) foundIn, sourceName)) {
+            transformedItem.put("found_in", foundIn);
         }
+
+        Object score = item.get("score");
+        if (score != null) {
+            transformedItem.put("score", score);
+        }
+
+            if (iri != null) {
+            transformedItem.put("@id", iri);
+        }
+
+        if (type != null) {
+            transformedItem.put("@type", type);
+        }
+
+        // build links  only for OntoPortal backends
+        if (ontoPortalUtil.isOntoPortalItem(item)
+                && source != null && ontology != null && iri != null) {
+            String encodedIri = URLEncoder.encode(iri, StandardCharsets.UTF_8);
+            String ontologyAcronym = ontology.contains("/") ? ontology.substring(ontology.lastIndexOf('/') + 1) : ontology;
+            String selfUrl = source + "/ontologies/" + ontologyAcronym + "/classes/" + encodedIri;
+            String ontologyUrl = source + "/ontologies/" + ontologyAcronym;
+
+            Map<String, Object> links = new LinkedHashMap<>();
+            links.put("self", selfUrl);
+            links.put("ontology", ontologyUrl);
+            links.put("children", selfUrl + "/children");
+            links.put("parents", selfUrl + "/parents");
+            links.put("descendants", selfUrl + "/descendants");
+            links.put("ancestors", selfUrl + "/ancestors");
+            links.put("instances", selfUrl + "/instances");
+            links.put("tree", selfUrl + "/tree");
+            links.put("notes", selfUrl + "/notes");
+            links.put("mappings", selfUrl + "/mappings");
+
+            if (sourceUrl != null) {
+                links.put("ui", sourceUrl);
+            }
+
+            // links @context from yaml
+            Map<String, Object> linksContext = buildLinksContext();
+            links.put("@context", linksContext);
+
+            transformedItem.put("links", links);
+        }
+
+        // build links for NERC backend
+        if ("nerc".equalsIgnoreCase(backendType) && iri != null) {
+            transformedItem.put("@type", "http://www.w3.org/2004/02/skos/core#Concept");
+
+            Map<String, Object> links = new LinkedHashMap<>();
+            links.put("self", iri + "?_profile=nvs&_mediatype=application/ld+json");
+            links.put("ui", iri);
+            links.put("ontology", deriveNercCollectionIri(iri));
+            transformedItem.put("links", links);
+
+            Object broader = item.get("broader");
+            transformedItem.put("parents", broader instanceof List ? broader : Collections.emptyList());
+
+            Object narrower = item.get("narrower");
+            transformedItem.put("children", narrower instanceof List ? narrower : Collections.emptyList());
+
+        }
+
+        // item level @context generated from annotations
+        Map<String, Object> context = buildItemContext(transformedItem);
+        transformedItem.put("@context", context);
+
         return transformedItem;
+    }
+
+    private String deriveNercCollectionIri(String conceptIri) {
+        String trimmed = conceptIri.endsWith("/") ? conceptIri.substring(0, conceptIri.length() - 1) : conceptIri;
+        int lastSlash = trimmed.lastIndexOf('/');
+        return lastSlash > 0 ? trimmed.substring(0, lastSlash + 1) : conceptIri;
+    }
+
+    private boolean isOptionalContextField(String key) {
+        return "synonym".equals(key) || "definition".equals(key);
     }
 
     @Override
     public Map<String, Object> constructResponse(List<Map<String, Object>> transformedResults, String mappingKey, boolean list, boolean paginate, int page, long totalCount) {
-        Map<String, Object> response = new HashMap<>();
-        response.put("page", page);
-        response.put("pageCount", 1); // TODO
-        response.put("totalCount", transformedResults.size());
-        response.put("prevPage", null);
-        response.put("nextPage", null);
-        Map<String, Object> links = new HashMap<>();
-        links.put("nextPage", null);
-        links.put("prevPage", null);
-        response.put("links", links);
+        Map<String, Object> response = new LinkedHashMap<>();
+
+        response.put("totalCount", totalCount > 0 ? totalCount : transformedResults.size());
         response.put("collection", transformedResults);
-        response.put("@context", Collections.singletonMap("@vocab", ""));
+
         return response;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> buildItemContext(Map<String, Object> transformedItem) {
+        Map<String, Object> context = new LinkedHashMap<>();
+
+        String vocab = contextConfig != null ? (String) contextConfig.get("vocab") : null;
+        String language = contextConfig != null ? (String) contextConfig.get("language") : null;
+        Map<String, String> fieldMappings = contextConfig != null ? (Map<String, String>) contextConfig.get("fieldMappings") : null;
+        Map<String, String> fieldOverrides = contextConfig != null ? (Map<String, String>) contextConfig.get("fieldOverrides") : null;
+
+        if (vocab != null) {
+            context.put("@vocab", vocab);
+        }
+
+        // generate context from @ContextUri annotations
+        if (fieldMappings != null && jsonLdTransform != null) {
+            Map<String, String> generatedContext = jsonLdTransform.generateContext(
+                    org.semantics.apigateway.model.RDFResource.class, null);
+
+            for (Map.Entry<String, String> entry : fieldMappings.entrySet()) {
+                String ontoPortalKey = entry.getKey();
+                String javaFieldName = entry.getValue();
+
+                if (isOptionalContextField(ontoPortalKey) && !transformedItem.containsKey(ontoPortalKey)) {
+                    continue;
+                }
+
+                // check for override first
+                if (fieldOverrides != null && fieldOverrides.containsKey(ontoPortalKey)) {
+                    context.put(ontoPortalKey, fieldOverrides.get(ontoPortalKey));
+                } else if (generatedContext.containsKey(javaFieldName)) {
+                    context.put(ontoPortalKey, generatedContext.get(javaFieldName));
+                }
+            }
+        }
+
+        context.put("@language", lang != null && !lang.isEmpty() ? lang : "en");
+
+        return context;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> buildLinksContext() {
+        if (contextConfig == null) {
+            return new LinkedHashMap<>();
+        }
+        Map<String, String> linksConfig = (Map<String, String>) contextConfig.get("links");
+        if (linksConfig == null) {
+            return new LinkedHashMap<>();
+        }
+        return new LinkedHashMap<>(linksConfig);
+    }
+
+    private String getStringValue(Map<String, Object> item, String key) {
+        Object value = item.get(key);
+        return value != null ? value.toString() : null;
+    }
+
+    private boolean shouldExposeFoundIn(List<?> foundIn, String sourceName) {
+        if (foundIn.size() > 1) {
+            return true;
+        }
+        if (foundIn.isEmpty() || sourceName == null) {
+            return false;
+        }
+        Object only = foundIn.get(0);
+        if (only instanceof Map) {
+            Object portal = ((Map<?, ?>) only).get("portal");
+            return portal == null || !portal.toString().equalsIgnoreCase(sourceName);
+        }
+        return true;
     }
 }
