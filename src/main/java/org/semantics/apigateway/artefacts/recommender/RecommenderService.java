@@ -46,11 +46,11 @@ public class RecommenderService extends AbstractEndpointService {
         OntologyIndex index = buildOntologyIndex(database, currentUser);
 
         ApiAccessor accessor = initAccessor(database, "recommender", null);
-        accessor = routeToCanonical(accessor, ontologies, index);
+        Set<String> scope = scopePortals(database);
+        accessor = restrictToScope(accessor, scope);
         accessor = applyParam(accessor, "input_type", inputTypeCode(inputType));
         String outputTypeCode = outputTypeCode(outputType);
         accessor = applyParam(accessor, "output_type", outputTypeCode);
-
         if (outputTypeCode.equals("2")) {
             accessor = applyParam(accessor, "max_elements_set", maxElementsSet);
         }
@@ -58,19 +58,22 @@ public class RecommenderService extends AbstractEndpointService {
         accessor = applyParam(accessor, "wa", acceptanceWeight);
         accessor = applyParam(accessor, "wd", detailWeight);
         accessor = applyParam(accessor, "ws", specializationWeight);
+        if (ontologies != null && !ontologies.isBlank()) {
+            accessor = applyParam(accessor, "ontologies", ontologies.trim());
+        }
         try {
             Map<String, ApiResponse> responses = accessor.get(input).get();
-            List<Object> recommendations = new ArrayList<>();
+            List<Object> all = new ArrayList<>();
             for (ApiResponse response : responses.values()) {
                 if (response == null || response.getResponseBody() == null) continue;
                 Object collection = response.getResponseBody().get("collection");
                 if (collection instanceof List) {
-                    recommendations.addAll((List<?>) collection);
+                    all.addAll((List<?>) collection);
                 }
             }
-            attachFoundIn(recommendations, index);
-            sortByScore(recommendations);
-            return buildResponse(recommendations);
+            List<Object> merged = mergeByCanonical(all, index, scope);
+            sortByScore(merged);
+            return buildResponse(merged, scope);
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
             return null;
@@ -87,10 +90,7 @@ public class RecommenderService extends AbstractEndpointService {
             String acronym = acronymOf(item);
             Object canonical = item.get("source_name");
             if (acronym == null || canonical == null) continue;
-            String key = acronym.toUpperCase();
-            index.canonicalByAcronym.put(key, canonical.toString());
-            Object foundIn = item.get("found_in");
-            if (foundIn != null) index.foundInByAcronym.put(key, foundIn);
+            index.canonicalByAcronym.put(acronym.toUpperCase(), canonical.toString());
         }
         logger.info("Recommender ontology index built: {} ontologies", index.canonicalByAcronym.size());
         return index;
@@ -107,36 +107,57 @@ public class RecommenderService extends AbstractEndpointService {
         return idx >= 0 ? url.substring(idx + 1) : url;
     }
 
-    private ApiAccessor routeToCanonical(ApiAccessor accessor, String ontologies, OntologyIndex index) {
-        Set<String> requested = new LinkedHashSet<>();
-        if (ontologies == null || ontologies.isBlank()) {
-            requested.addAll(index.canonicalByAcronym.keySet());
-        } else {
-            for (String a : ontologies.split(",")) {
-                String t = a.trim().toUpperCase();
-                if (!t.isEmpty()) requested.add(t);
-            }
+    @SuppressWarnings("unchecked")
+    private List<Object> mergeByCanonical(List<Object> all, OntologyIndex index, Set<String> portals) {
+        Map<String, List<Map<String, Object>>> groups = new LinkedHashMap<>();
+        for (Object obj : all) {
+            if (!(obj instanceof Map)) continue;
+            Map<String, Object> item = (Map<String, Object>) obj;
+            String acronym = recommendationAcronym(item);
+            if (acronym == null) continue;
+            groups.computeIfAbsent(acronym.toUpperCase(), k -> new ArrayList<>()).add(item);
         }
 
-        Set<String> portals = ontoPortalUtil.getOntoPortalPortals();
-        Map<String, UrlConfig> updated = new LinkedHashMap<>();
-        accessor.getUrls().forEach((url, cfg) -> {
-            String portalName = portalNameOf(url, portals);
-            if (portalName == null) {
-                updated.put(url, cfg);
-                return;
+        List<Object> merged = new ArrayList<>();
+        for (Map.Entry<String, List<Map<String, Object>>> entry : groups.entrySet()) {
+            List<Map<String, Object>> group = entry.getValue();
+            Map<String, Object> canonical = new LinkedHashMap<>(pickCanonicalCopy(group, index.canonicalByAcronym.get(entry.getKey()), portals));
+            List<Object> sources = sourcesOf(group, portals);
+            if (sources.size() > 1) {
+                canonical.put("found_in", sources);
+            } else {
+                canonical.remove("found_in");
             }
-            List<String> forPortal = new ArrayList<>();
-            for (String acronym : requested) {
-                String canon = index.canonicalByAcronym.get(acronym);
-                if (canon != null && canon.equalsIgnoreCase(portalName)) forPortal.add(acronym);
+            merged.add(canonical);
+        }
+        return merged;
+    }
+
+    private Map<String, Object> pickCanonicalCopy(List<Map<String, Object>> group, String canonicalPortal, Set<String> portals) {
+        if (canonicalPortal != null) {
+            for (Map<String, Object> item : group) {
+                if (canonicalPortal.equalsIgnoreCase(portalNameOf(ontologyUrl(item), portals))) return item;
             }
-            if (forPortal.isEmpty()) return;
-            String sep = url.contains("?") ? "&" : "?";
-            updated.put(url + sep + "ontologies=" + String.join(",", forPortal), cfg);
-        });
-        accessor.setUrls(updated);
-        return accessor;
+        }
+        Map<String, Object> best = group.get(0);
+        for (Map<String, Object> item : group) {
+            if (scoreOf(item) > scoreOf(best)) best = item;
+        }
+        return best;
+    }
+
+    private List<Object> sourcesOf(List<Map<String, Object>> group, Set<String> portals) {
+        List<Object> list = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+        for (Map<String, Object> item : group) {
+            String portal = portalNameOf(ontologyUrl(item), portals);
+            if (portal == null || !seen.add(portal)) continue;
+            Map<String, Object> link = new LinkedHashMap<>();
+            link.put("portal", portal);
+            link.put("ui_link", ontologyUiLink(item));
+            list.add(link);
+        }
+        return list;
     }
 
     private void sortByScore(List<Object> recommendations) {
@@ -155,77 +176,35 @@ public class RecommenderService extends AbstractEndpointService {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private void attachFoundIn(List<Object> recommendations, OntologyIndex index) {
-        for (Object obj : recommendations) {
-            if (!(obj instanceof Map)) continue;
-            Map<String, Object> item = (Map<String, Object>) obj;
-            String acronym = recommendationAcronym(item);
-            if (acronym == null) continue;
-            Object foundIn = index.foundInByAcronym.get(acronym.toUpperCase());
-            if (foundIn instanceof List) item.put("found_in", toPortalLinks((List<?>) foundIn));
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private List<Object> toPortalLinks(List<?> foundIn) {
-        List<Object> result = new ArrayList<>();
-        for (Object obj : foundIn) {
-            if (!(obj instanceof Map)) continue;
-            Map<String, Object> entry = (Map<String, Object>) obj;
-            Map<String, Object> link = new LinkedHashMap<>();
-            link.put("portal", entry.get("source_name"));
-            link.put("ui_link", entry.get("source_url"));
-            result.add(link);
-        }
-        return result;
-    }
-
-    private Map<String, Object> buildResponse(List<Object> collection) {
+    private Map<String, Object> buildResponse(List<Object> collection, Set<String> portals) {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("totalCount", collection.size());
-        response.put("countByPortal", countByPortal(collection));
+        response.put("countByPortal", countByPortal(collection, portals));
         response.put("collection", collection);
         return response;
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, Integer> countByPortal(List<Object> collection) {
-        Set<String> portals = ontoPortalUtil.getOntoPortalPortals();
+    private Map<String, Integer> countByPortal(List<Object> collection, Set<String> portals) {
         Map<String, Integer> counts = new LinkedHashMap<>();
         for (Object obj : collection) {
             if (!(obj instanceof Map)) continue;
             Map<String, Object> item = (Map<String, Object>) obj;
-            Set<String> itemPortals = new LinkedHashSet<>();
-            addPortal(itemPortals, ontologyUrl(item), portals);
             Object foundIn = item.get("found_in");
-            if (foundIn instanceof List) {
+            if (foundIn instanceof List && !((List<?>) foundIn).isEmpty()) {
                 for (Object entry : (List<?>) foundIn) {
-                    if (entry instanceof Map) {
-                        Object portal = ((Map<String, Object>) entry).get("portal");
-                        if (portal != null && portals.contains(portal.toString().toLowerCase())) {
-                            itemPortals.add(portal.toString().toLowerCase());
-                        }
-                    }
+                    if (!(entry instanceof Map)) continue;
+                    Object portal = ((Map<String, Object>) entry).get("portal");
+                    if (portal != null) counts.merge(portal.toString().toLowerCase(), 1, Integer::sum);
                 }
+            } else {
+                String portal = portalNameOf(ontologyUrl(item), portals);
+                if (portal != null) counts.merge(portal, 1, Integer::sum);
             }
-            for (String portal : itemPortals) counts.merge(portal, 1, Integer::sum);
         }
         return counts;
     }
 
-    private void addPortal(Set<String> accumulator, String url, Set<String> portals) {
-        if (url == null) return;
-        String lower = url.toLowerCase();
-        for (String portal : portals) {
-            if (lower.contains(portal)) {
-                accumulator.add(portal);
-                return;
-            }
-        }
-    }
-
-    @SuppressWarnings("unchecked")
     private String recommendationAcronym(Map<String, Object> item) {
         Map<String, Object> ontology = firstOntology(item);
         if (ontology == null) return null;
@@ -250,6 +229,15 @@ public class RecommenderService extends AbstractEndpointService {
     }
 
     @SuppressWarnings("unchecked")
+    private String ontologyUiLink(Map<String, Object> item) {
+        Map<String, Object> ontology = firstOntology(item);
+        if (ontology == null) return null;
+        Map<String, Object> links = (Map<String, Object>) ontology.get("links");
+        if (links == null || links.get("ui") == null) return null;
+        return links.get("ui").toString();
+    }
+
+    @SuppressWarnings("unchecked")
     private Map<String, Object> firstOntology(Map<String, Object> item) {
         Object ontologies = item.get("ontologies");
         if (!(ontologies instanceof List)) return null;
@@ -257,6 +245,29 @@ public class RecommenderService extends AbstractEndpointService {
         if (list.isEmpty()) return null;
         Object first = list.get(0);
         return first instanceof Map ? (Map<String, Object>) first : null;
+    }
+
+    private Set<String> scopePortals(String database) {
+        Set<String> all = ontoPortalUtil.getOntoPortalPortals();
+        if (database == null || database.isBlank()) return all;
+        Set<String> scope = new LinkedHashSet<>();
+        for (String token : database.split(",")) {
+            String t = token.trim().toLowerCase();
+            if (t.isEmpty()) continue;
+            for (String portal : all) {
+                if (t.equals(portal)) scope.add(portal);
+            }
+        }
+        return scope.isEmpty() ? all : scope;
+    }
+
+    private ApiAccessor restrictToScope(ApiAccessor accessor, Set<String> scope) {
+        Map<String, UrlConfig> kept = new LinkedHashMap<>();
+        accessor.getUrls().forEach((url, cfg) -> {
+            if (portalNameOf(url, scope) != null) kept.put(url, cfg);
+        });
+        if (!kept.isEmpty()) accessor.setUrls(kept);
+        return accessor;
     }
 
     private String portalNameOf(String url, Set<String> portals) {
@@ -282,8 +293,7 @@ public class RecommenderService extends AbstractEndpointService {
 
     private String sanitize(String text) {
         if (text == null) return null;
-        if (text.matches("^[a-zA-Z0-9\\s,]*$")) return text;
-        return text.replaceAll("[^\\w\\s,]", "");
+        return text.replaceAll("[%&#]", " ");
     }
 
     private ApiAccessor applyParam(ApiAccessor accessor, String name, String value) {
@@ -301,6 +311,5 @@ public class RecommenderService extends AbstractEndpointService {
 
     private static class OntologyIndex {
         final Map<String, String> canonicalByAcronym = new HashMap<>();
-        final Map<String, Object> foundInByAcronym = new HashMap<>();
     }
 }
