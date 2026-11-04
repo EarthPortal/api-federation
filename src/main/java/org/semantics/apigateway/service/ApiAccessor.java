@@ -17,6 +17,7 @@ import java.net.URL;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -24,6 +25,8 @@ import java.util.stream.Stream;
 @AllArgsConstructor
 @Service
 public class ApiAccessor {
+
+    private static final Pattern APIKEY_PARAM = Pattern.compile("(?i)(apikey=)[^&\\s\"]*");
 
     private RestTemplate restTemplate;
     private Map<String, UrlConfig> urls;
@@ -110,7 +113,7 @@ public class ApiAccessor {
                 logger.info("Cache is disabled");
 
             if (url.endsWith("/localData")) {
-                logger.info("Local data requested for URL: {}", fullUrl);
+                logger.info("Local data requested for URL: {}", maskApiKey(fullUrl));
                 Map<String, Object> out = new HashMap<>();
                 List<Object> collection = new ArrayList<>();
                 collection.add(new HashMap<>());
@@ -126,7 +129,7 @@ public class ApiAccessor {
             }
             HttpEntity<String> entity = new HttpEntity<>("body", headers);
             
-            logger.info("Accessing URL: {}", fullUrl);
+            logger.info("Accessing URL: {}", maskApiKey(fullUrl));
             
             long startTime = System.currentTimeMillis();
 
@@ -140,7 +143,7 @@ public class ApiAccessor {
 
             long endTime = System.currentTimeMillis();
             long responseTime = endTime - startTime;
-            logger.info("URL accessed {} in {}s", fullUrl, responseTime);
+            logger.info("URL accessed {} in {}s", maskApiKey(fullUrl), responseTime);
             result.setResponseTime(responseTime);
 
             result.setStatusCode(response.getStatusCodeValue());
@@ -159,16 +162,21 @@ public class ApiAccessor {
                 markReachable(url);
                 return result;
             } else {
-                logger.error("API {} Response Error: Status Code - {}", fullUrl, response.getStatusCode());
+                logger.error("API {} Response Error: Status Code - {}", maskApiKey(fullUrl), response.getStatusCode());
                 return result;
             }
         } catch (Exception e) {
-            logger.error("An error occurred while processing the request {}: {}", fullUrl, e.getMessage());
+            logger.error("An error occurred while processing the request {}: {}", maskApiKey(fullUrl), maskApiKey(e.getMessage()));
             if (e instanceof ResourceAccessException) {
                 markUnreachable(url);
             }
             return result;
         }
+    }
+
+    // Hide the apikey query parameter value so source API keys never end up in the logs
+    public static String maskApiKey(String text) {
+        return text == null ? null : APIKEY_PARAM.matcher(text).replaceAll("$1***");
     }
 
     private String constructUrl(String url, UrlConfig config, String... query) {

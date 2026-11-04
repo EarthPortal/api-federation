@@ -9,7 +9,7 @@
 
   "links": {
 
-    "nextPage": "https://data.agroportal.lirmm.fr/search?q=plant&apikey=${AGROPORTAL_API_KEY}&page=2",
+    "nextPage": "https://data.agroportal.lirmm.fr/search?q=plant&apikey=00000000-0000-0000-0000-000000000000&page=2",
     "prevPage": null
 
   },

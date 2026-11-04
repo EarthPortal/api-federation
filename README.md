@@ -34,7 +34,9 @@ To set up the API-Federation, follow these steps:
    `git clone https://github.com/EarthPortal/api-federation.git`
 2. In your command line navigate to the project directory:
    `cd api-federation`
-3. Run docker-compose to start the API Federation and its dependencies:
+3. Create a `.env` file with the API keys of the OntoPortal sources (the service refuses to start without them):
+   `cp .env.sample .env` then fill in the values
+4. Run docker-compose to start the API Federation and its dependencies:
    `docker compose --profile all up --build`
    The service will be accessible at `http://localhost:8080/api-gateway` by default.
 
@@ -45,7 +47,7 @@ The service's dynamic configuration approach allows for straightforward extensib
 #### Steps to Integrate a New TS Schema:
 
 1. **Add a new Mapping Configuration file:** Create a new YAML file in the `src/main/resources/backend_types` directory. This file should define the mapping between the new TS schema and the API Federation schema. See the existing mapping files for examples of how to structure this file.
-2. **Add your database URL:** edit the `src/main/resources/databases.json` file to add the new TS database URL. This file contains the connection details for all the TS databases that the API Federation will connect to.
+2. **Add your database URL:** edit the `src/main/resources/databases.json` file to add the new TS database URL. This file contains the connection details for all the TS databases that the API Federation will connect to. If the backend needs an API key, set `"apiKey": "${NEWPORTAL_API_KEY}"` rather than the key itself, and add `NEWPORTAL_API_KEY` to `.env.sample` and to the `x-source-api-keys` block of `docker-compose.yaml`.
 
 No code changes are needed; the federation engine picks up the new backend on restart.
 

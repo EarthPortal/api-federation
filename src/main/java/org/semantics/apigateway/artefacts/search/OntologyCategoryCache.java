@@ -1,6 +1,7 @@
 package org.semantics.apigateway.artefacts.search;
 
 import org.semantics.apigateway.config.DatabaseConfig;
+import org.semantics.apigateway.service.ApiAccessor;
 import org.semantics.apigateway.service.configuration.ConfigurationLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +28,7 @@ public class OntologyCategoryCache {
     public List<String> getCategories(String portal, String acronym) {
         if (portal == null || acronym == null) return Collections.emptyList();
         Map<String, List<String>> portalMap = cache.computeIfAbsent(portal.toLowerCase(), this::loadPortal);
+        if (portalMap == null) return Collections.emptyList();
         return portalMap.getOrDefault(acronym.toUpperCase(), Collections.emptyList());
     }
 
@@ -36,10 +38,10 @@ public class OntologyCategoryCache {
             DatabaseConfig config = configurationLoader.getConfigByName(portal);
             if (config == null || !config.isOntoPortal()) return result;
 
-            String url = config.getUrl() + "/ontologies?display=acronym,hasDomain&apikey=" + config.getApiKey().trim();
+            String url = config.getUrl() + "/ontologies?display=acronym,hasDomain";
             logger.info("Loading categories cache for portal {} from {}", portal, url);
 
-            List<Map<String, Object>> ontologies = restTemplate.getForObject(url, List.class);
+            List<Map<String, Object>> ontologies = restTemplate.getForObject(url + "&apikey=" + config.getApiKey().trim(), List.class);
             if (ontologies == null) return result;
 
             for (Map<String, Object> ontology : ontologies) {
@@ -61,7 +63,9 @@ public class OntologyCategoryCache {
             }
             logger.info("Loaded {} ontology-category mappings for {}", result.size(), portal);
         } catch (Exception e) {
-            logger.error("Failed to load categories for portal {}: {}", portal, e.getMessage());
+            // Not cached (computeIfAbsent ignores null), so the next request retries instead of filtering on nothing
+            logger.error("Failed to load categories for portal {}: {}", portal, ApiAccessor.maskApiKey(e.getMessage()));
+            return null;
         }
         return result;
     }
