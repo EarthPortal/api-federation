@@ -59,7 +59,7 @@ public class RecommenderService extends AbstractEndpointService {
         accessor = applyParam(accessor, "wd", detailWeight);
         accessor = applyParam(accessor, "ws", specializationWeight);
         if (ontologies != null && !ontologies.isBlank()) {
-            accessor = applyParam(accessor, "ontologies", ontologies.trim());
+            accessor = routeOntologies(accessor, ontologies, index);
         }
         try {
             Map<String, ApiResponse> responses = accessor.get(input).get();
@@ -90,7 +90,20 @@ public class RecommenderService extends AbstractEndpointService {
             String acronym = acronymOf(item);
             Object canonical = item.get("source_name");
             if (acronym == null || canonical == null) continue;
-            index.canonicalByAcronym.put(acronym.toUpperCase(), canonical.toString());
+            String key = acronym.toUpperCase();
+            index.canonicalByAcronym.put(key, canonical.toString());
+
+            Set<String> hosts = new LinkedHashSet<>();
+            hosts.add(canonical.toString().toLowerCase());
+            Object foundIn = item.get("found_in");
+            if (foundIn instanceof List) {
+                for (Object entry : (List<?>) foundIn) {
+                    if (!(entry instanceof Map)) continue;
+                    Object sourceName = ((Map<String, Object>) entry).get("source_name");
+                    if (sourceName != null) hosts.add(sourceName.toString().toLowerCase());
+                }
+            }
+            index.hostsByAcronym.put(key, hosts);
         }
         logger.info("Recommender ontology index built: {} ontologies", index.canonicalByAcronym.size());
         return index;
@@ -270,6 +283,34 @@ public class RecommenderService extends AbstractEndpointService {
         return accessor;
     }
 
+   private ApiAccessor routeOntologies(ApiAccessor accessor, String ontologies, OntologyIndex index) {
+        Set<String> requested = new LinkedHashSet<>();
+        for (String a : ontologies.split(",")) {
+            String t = a.trim().toUpperCase();
+            if (!t.isEmpty()) requested.add(t);
+        }
+
+        Set<String> portals = ontoPortalUtil.getOntoPortalPortals();
+        Map<String, UrlConfig> updated = new LinkedHashMap<>();
+        accessor.getUrls().forEach((url, cfg) -> {
+            String portalName = portalNameOf(url, portals);
+            if (portalName == null) {
+                updated.put(url, cfg);
+                return;
+            }
+            List<String> forPortal = new ArrayList<>();
+            for (String acronym : requested) {
+                Set<String> hosts = index.hostsByAcronym.get(acronym);
+                if (hosts != null && hosts.contains(portalName)) forPortal.add(acronym);
+            }
+            if (forPortal.isEmpty()) return;
+            String sep = url.contains("?") ? "&" : "?";
+            updated.put(url + sep + "ontologies=" + String.join(",", forPortal), cfg);
+        });
+        accessor.setUrls(updated);
+        return accessor;
+    }
+
     private String portalNameOf(String url, Set<String> portals) {
         if (url == null) return null;
         String lower = url.toLowerCase();
@@ -311,5 +352,6 @@ public class RecommenderService extends AbstractEndpointService {
 
     private static class OntologyIndex {
         final Map<String, String> canonicalByAcronym = new HashMap<>();
+        final Map<String, Set<String>> hostsByAcronym = new HashMap<>();
     }
 }
