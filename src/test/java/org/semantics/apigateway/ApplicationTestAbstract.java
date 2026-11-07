@@ -79,7 +79,7 @@ public abstract class ApplicationTestAbstract {
         fixture.put("backend_type", "ontoportal");
         fixture.put("short_form", "AGROVOC");
         fixture.put("label", "AGROVOC");
-        fixture.put("source", "https://data.agroportal.lirmm.fr");
+        fixture.put("source", "https://data.agroportal.eu");
         fixture.put("source_name", "agroportal");
         fixture.put("descriptions", List.of(
                 "AGROVOC is a multilingual and controlled vocabulary designed to cover concepts and terminology under FAO's areas of interest. It is a large Linked Open Data set about agriculture, available for public use, and its highest impact is through facilitating the access and visibility of data across domains and languages."
@@ -100,17 +100,15 @@ public abstract class ApplicationTestAbstract {
         fixture.put("keywords", Collections.emptyList());
         fixture.put("contactPoint", List.of("AGROVOC@fao.org"));
         fixture.put("subject", List.of(
-                " http://dbpedia.org/resource/Agriculture",
-                "http://aims.fao.org/aos/agrovoc/c_203",
-                "http://aims.fao.org/aos/agrovoc/c_2593",
-                "http://aims.fao.org/aos/agrovoc/c_2934",
-                "http://aims.fao.org/aos/agrovoc/c_3055",
-                "http://aims.fao.org/aos/agrovoc/c_49892",
-                "http://dbpedia.org/resource/Environment",
-                "http://dbpedia.org/resource/Fishery",
-                "http://dbpedia.org/resource/Food",
-                "http://dbpedia.org/resource/Forestry",
-                "http://dbpedia.org/resource/Nutrition"
+                "https://data.agroportal.lirmm.fr/categories/AG-ENG",
+                "https://data.agroportal.lirmm.fr/categories/AG-RES",
+                "https://data.agroportal.lirmm.fr/categories/AGRI",
+                "https://data.agroportal.lirmm.fr/categories/CULT",
+                "https://data.agroportal.lirmm.fr/categories/EARTH",
+                "https://data.agroportal.lirmm.fr/categories/ENV",
+                "https://data.agroportal.lirmm.fr/categories/FISH",
+                "https://data.agroportal.lirmm.fr/categories/FOREST",
+                "https://data.agroportal.lirmm.fr/categories/NAT-RES"
         ));
         fixture.put("obsolete", false);
         fixture.put("language", List.of(

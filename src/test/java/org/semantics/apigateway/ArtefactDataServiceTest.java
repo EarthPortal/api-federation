@@ -187,7 +187,7 @@ public class ArtefactDataServiceTest extends ApplicationTestAbstract {
         map.put("synonyms", Collections.emptyList());
         map.put("descriptions", List.of("A summary of the resource."));
         map.put("obsolete", false);
-        map.put("source", "https://data.agroportal.lirmm.fr");
+        map.put("source", "https://data.agroportal.eu");
         map.put("type", "http://www.w3.org/2002/07/owl#AnnotationProperty");
         map.put("version", null); //TODO: to remove maybe
         map.put("source_url", null); //TODO: add source_url
@@ -226,7 +226,7 @@ public class ArtefactDataServiceTest extends ApplicationTestAbstract {
         fixture.put("backend_type", "ontoportal");
         fixture.put("short_form", "c_330834");
         fixture.put("label", "activities");
-        fixture.put("source", "https://data.agroportal.lirmm.fr");
+        fixture.put("source", "https://data.agroportal.eu");
         fixture.put("source_name", "agroportal");
         fixture.put("descriptions", List.of("http://aims.fao.org/aos/agrovoc/xDef_d8a81e42", "http://aims.fao.org/aos/agrovoc/xDef_47a14ae7"));
         fixture.put("synonyms", Collections.emptyList());
@@ -247,7 +247,7 @@ public class ArtefactDataServiceTest extends ApplicationTestAbstract {
         fixture.put("backend_type", "ontoportal");
         fixture.put("short_form", "gr_6c79e7c5");
         fixture.put("label", "coll DEFINED CONCEPTS");
-        fixture.put("source", "https://data.agroportal.lirmm.fr");
+        fixture.put("source", "https://data.agroportal.eu");
         fixture.put("source_name", "agroportal");
         fixture.put("descriptions", Collections.emptyList());
         fixture.put("synonyms", Collections.emptyList());
@@ -288,10 +288,10 @@ public class ArtefactDataServiceTest extends ApplicationTestAbstract {
     private Map<String, Object> createOntoPortalFoodOnInstanceFixture() {
         Map<String, Object> fixture = createFoodOnInstanceFixture();
         fixture.put("backend_type", "ontoportal");
-        fixture.put("source", "https://data.agroportal.lirmm.fr");
+        fixture.put("source", "https://data.agroportal.eu");
         fixture.put("source_name", "agroportal");
         fixture.put("ontology", "agroportal"); // TODO: this should be foodon
-        fixture.put("ontology_iri", "https://data.agroportal.lirmm.fr"); // TODO: this should be http://data.agroportal.lirmm.fr/ontologies/FOODON
+        fixture.put("ontology_iri", "https://data.agroportal.eu"); // TODO: this should be http://data.agroportal.lirmm.fr/ontologies/FOODON
         fixture.put("type", "http://www.w3.org/2002/07/owl#NamedIndividual"); //TODO: harmonize with ols types
         return fixture;
     }
@@ -301,7 +301,7 @@ public class ArtefactDataServiceTest extends ApplicationTestAbstract {
         fixture.put("short_form", "GAZ_00000464");
         fixture.put("iri", "http://purl.obolibrary.org/obo/GAZ_00000464");
         fixture.put("label", "Europe");
-        fixture.put("source", "https://data.agroportal.lirmm.fr");
+        fixture.put("source", "https://data.agroportal.eu");
         fixture.put("ontology", "foodon");
         fixture.put("descriptions", Collections.emptyList());
         fixture.put("synonyms", Collections.emptyList());
@@ -322,7 +322,7 @@ public class ArtefactDataServiceTest extends ApplicationTestAbstract {
         fixture.put("synonyms", Collections.emptyList());
         fixture.put("created", null);
         fixture.put("obsolete", false);
-        fixture.put("source", "https://data.agroportal.lirmm.fr");
+        fixture.put("source", "https://data.agroportal.eu");
         fixture.put("type", "http://www.w3.org/2004/02/skos/core#ConceptScheme");
         fixture.put("descriptions", Collections.emptyList());
         fixture.put("version", null);
