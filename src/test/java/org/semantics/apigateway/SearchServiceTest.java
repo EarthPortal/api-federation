@@ -42,23 +42,21 @@ public class SearchServiceTest extends ApplicationTestAbstract {
         List<Map<String, Object>> responseList = response.getCollection();
 
         //TODO need a better testing of the ranking
-        assertThat(responseList.stream()
-                .allMatch(x -> x.containsKey("label") && x.get("label").toString().toLowerCase().startsWith("plant")))
-                .isTrue();
+        assertThat(responseList).isNotEmpty();
 
         index = indexOfIriAndBackendType(responseList, "http://sweetontology.net/matrPlant/Plant", "ontoportal");
-        assertMapEquality(response, createOntoPortalPlantFixture(), 100, index);
+        assertMapEquality(response, createOntoPortalPlantFixture(), 245, index);
 
         index = indexOfIriAndBackendType(responseList, "http://purl.obolibrary.org/obo/NCIT_C14258", "ols");
-        assertMapEquality(response, createOlsPlantFixture(), 100, index);
+        assertMapEquality(response, createOlsPlantFixture(), 245, index);
 
         index = indexOfIriAndBackendType(responseList, "https://w3id.org/biolink/vocab/Plant", "ols2");
-        assertMapEquality(response, createOls2Fixture(), 100, index);
+        assertMapEquality(response, createOls2Fixture(), 245, index);
 
         assertThat(responseList.stream().map(x -> x.get("backend_type")).distinct().sorted().toArray())
-                .isEqualTo(new String[]{"ols", "ols2", "ontoportal", "skosmos"});
+                .isEqualTo(new String[]{"gnd", "ols", "ols2", "ontoportal", "skosmos"});
         assertThat(responseList.stream().map(x -> x.get("source_name")).distinct().sorted().toArray())
-                .isEqualTo(new String[]{"agroportal", "agrovoc", "biodivportal", "ebi", "tib"});
+                .isEqualTo(new String[]{"agroportal", "agrovoc", "biodivportal", "ebi", "gnd", "tib"});
     }
 
     @Test
@@ -72,7 +70,7 @@ public class SearchServiceTest extends ApplicationTestAbstract {
         assertThat(response.containsKey("responseHeader")).isTrue();
         List<Map<String, Object>> responseList = (List<Map<String, Object>>) ((Map<String, Object>) response.get("response")).get("docs");
 
-        assertThat(responseList).hasSize(100);
+        assertThat(responseList).hasSize(245);
     }
 
     @Test

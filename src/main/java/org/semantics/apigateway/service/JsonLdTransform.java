@@ -20,9 +20,16 @@ public class JsonLdTransform {
     public List<Map<String, Object>> convertToJsonLd(List<Map<String, Object>> response, String type, Map<String, String> context) {
 
         List<Map<String, Object>> nestedData = response;
+        String base = context.get("@base");
 
         nestedData = nestedData.stream().peek(item -> {
-            item.put("@context", context);
+            Map<String, String> itemContext = new HashMap<>();
+            if (base != null) itemContext.put("@base", base);
+            for (String key : item.keySet()) {
+                if (key.startsWith("@")) continue;
+                itemContext.put(key, context.getOrDefault(key, getBaseUri() + key));
+            }
+            item.put("@context", itemContext);
             item.put("@type", type); // TODO: make this a list
             if(item.get("iri") != null){
                 item.put("@id", item.get("iri"));
