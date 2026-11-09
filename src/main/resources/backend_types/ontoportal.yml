@@ -69,8 +69,6 @@ models:
     administeredBy: ontology->administeredBy
     group: ontology->group
     hasOntologyLanguage: hasOntologyLanguage
-    hasFormalityLevel: hasFormalityLevel
-    isOfType: isOfType
   term: &term
     label: prefLabel|label
     iri: "@id"
@@ -100,8 +98,11 @@ endpoints:
       totalCount: totalCount
       <<: *searchResult
 
+  annotator:
+    path: /annotator?text=%s&apikey=%s&include=prefLabel,synonym,definition
+
   resources:
-    path: /submissions?apikey=%s&display_links=true&display_context=false&display=ontology,description,URI,released,modificationDate,alternative,version,status,versionIRI,hasLicense,contact,hasCreator,identifier,keyword,naturalLanguage,publisher,homepage,hasDomain,accrualMethod,accrualPeriodicity,publication,hasContributor,coverage,hasFormat,hasOntologyLanguage,hasFormalityLevel,isOfType,copyrightHolder,competencyQuestion,wasGeneratedBy,includedInDataCatalog,ontologyRelatedTo,usedOntologyEngineeringTool,keywords,obsolete,pullLocation&lang=en
+    path: /submissions?apikey=%s&display_links=true&display_context=false&display=ontology,description,URI,released,modificationDate,alternative,version,status,versionIRI,hasLicense,contact,hasCreator,identifier,keyword,naturalLanguage,publisher,homepage,hasDomain,accrualMethod,accrualPeriodicity,publication,hasContributor,coverage,hasFormat,hasOntologyLanguage,copyrightHolder,competencyQuestion,wasGeneratedBy,includedInDataCatalog,ontologyRelatedTo,usedOntologyEngineeringTool,keywords,obsolete,pullLocation&lang=en
     responseMapping:
       nestedJson: collection
       <<: *artefact
