@@ -2,11 +2,13 @@ package org.semantics.apigateway.artefacts.annotator;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.semantics.apigateway.model.user.User;
 import org.semantics.apigateway.service.auth.AuthService;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -49,5 +51,36 @@ public class AnnotatorController {
     ) {
         User user = authService.tryGetCurrentUser();
         return annotatorService.performAnnotation(database, text, ontologies, expandMappings, excludeNumbers, excludeSynonyms, wholeWordOnly, longestOnly, classHierarchyMaxLevel, user);
+    }
+
+    // Same as GET, but the text is the plain-text request body: no URL length limit, and Swagger UI
+    // shows a multi-line text area for it (it only does that for request bodies).
+    @Operation(summary = "Annotate a text sent in the request body (for long texts).")
+    @SecurityRequirement(name = "BearerAuth")
+    @PostMapping(value = "/annotator", consumes = MediaType.TEXT_PLAIN_VALUE)
+    public Object annotateBody(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "The text to annotate", required = true,
+                    content = @Content(mediaType = MediaType.TEXT_PLAIN_VALUE,
+                            schema = @Schema(type = "string", example = "soil temperature and water quality")))
+            @RequestBody String text,
+            @Parameter(description = "Which source to query (e.g. earthportal).", example = "earthportal")
+            @RequestParam String database,
+            @Parameter(description = "Restrict to these ontology acronyms (comma-separated). Empty = all ontologies of the source.", example = "ENVTHES")
+            @RequestParam(required = false, defaultValue = "") String ontologies,
+            @Parameter(description = "Expand the mappings of the annotated classes.")
+            @RequestParam(name = "expand_mappings", required = false, defaultValue = "false") boolean expandMappings,
+            @Parameter(description = "Exclude numbers from the annotations.")
+            @RequestParam(name = "exclude_numbers", required = false, defaultValue = "false") boolean excludeNumbers,
+            @Parameter(description = "Exclude synonyms from the annotations.")
+            @RequestParam(name = "exclude_synonyms", required = false, defaultValue = "false") boolean excludeSynonyms,
+            @Parameter(description = "Match whole words only.")
+            @RequestParam(name = "whole_word_only", required = false, defaultValue = "false") boolean wholeWordOnly,
+            @Parameter(description = "Keep only the longest match when annotations overlap.")
+            @RequestParam(name = "longest_only", required = false, defaultValue = "false") boolean longestOnly,
+            @Parameter(description = "Include ancestors up to this level.",
+                    schema = @Schema(allowableValues = {"None", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "All"}, defaultValue = "None"))
+            @RequestParam(name = "class_hierarchy_max_level", required = false, defaultValue = "None") String classHierarchyMaxLevel
+    ) {
+        return annotate(text, database, ontologies, expandMappings, excludeNumbers, excludeSynonyms, wholeWordOnly, longestOnly, classHierarchyMaxLevel);
     }
 }
