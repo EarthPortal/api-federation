@@ -75,7 +75,7 @@ public class OpenApiConfig {
             if (hasOntoportal) values.add(ONTOPORTAL_GROUP);
             values.addAll(sources);
 
-            String description = "Which source(s) to query. Select one or several (Ctrl/Cmd+click)"
+            String description = "Which source(s) to query. Click a source to select or deselect it"
                     + (hasOntoportal ? "; '" + ONTOPORTAL_GROUP + "' queries all OntoPortal sources at once" : "")
                     + ". In a URL, separate several sources with commas, e.g. database=earthportal,agroportal.";
 

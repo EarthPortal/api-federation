@@ -60,4 +60,16 @@ public class OpenApiDatabaseParamTest {
         assertThat(values(annotator)).isEqualTo(expected);
         assertThat(annotator.path("schema").path("default").get(0).asText()).isEqualTo("earthportal");
     }
+
+    @Test
+    public void testSwaggerUiPageGetsTheSourceSelectorScript() throws Exception {
+        String html = mockMvc.perform(get("/swagger-ui/index.html")).andReturn().getResponse().getContentAsString();
+
+        assertThat(html).contains("tr[data-param-name='database'] select[multiple]");
+        assertThat(html).contains("\"ontoportal\":\"all OntoPortal sources\"",
+                "\"agroportal\":\"data.agroportal.eu\"", "\"ebi\":\"www.ebi.ac.uk\"");
+        // Injected once, inside the page, before the end of <body>
+        assertThat(html.indexOf("var labels")).isPositive().isLessThan(html.indexOf("</body>"));
+        assertThat(html.indexOf("var labels")).isEqualTo(html.lastIndexOf("var labels"));
+    }
 }
