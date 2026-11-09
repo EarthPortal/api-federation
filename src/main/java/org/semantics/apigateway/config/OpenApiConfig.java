@@ -2,15 +2,19 @@ package org.semantics.apigateway.config;
 
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.media.ArraySchema;
+import io.swagger.v3.oas.models.media.StringSchema;
+import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.tags.Tag;
+import org.semantics.apigateway.artefacts.annotator.AnnotatorController;
 import org.semantics.apigateway.service.configuration.ConfigurationLoader;
 import org.springdoc.core.customizers.OperationCustomizer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Defines the OpenAPI metadata programmatically so the same image can expose a different
@@ -46,8 +50,11 @@ public class OpenApiConfig {
     }
 
     /**
-     * Rewrites the {@code database} parameter description at doc-generation time so each instance
-     * advertises only the sources it actually loaded ({@link ConfigurationLoader#getDatabaseConfigs()}).
+     * Turns the {@code database} parameter into a multi-select list of the sources this instance actually
+     * loaded ({@link ConfigurationLoader#getDatabaseConfigs()}), plus {@code ontoportal} for all OntoPortal
+     * sources at once. Serialized as {@code style=form, explode=false}, so Swagger UI sends the selection
+     * comma-separated ({@code database=earthportal,agroportal}), which is what the controllers expect.
+     * The annotator only exists on OntoPortal sources, so its list is restricted to them.
      * The hardcoded {@code @Parameter} descriptions in the controllers act as a static fallback.
      */
     @Bean
@@ -57,19 +64,41 @@ public class OpenApiConfig {
             if (configs == null || configs.isEmpty() || operation.getParameters() == null) {
                 return operation;
             }
-            String sources = configs.stream()
-                    .map(c -> c.getName())
-                    .collect(Collectors.joining(", "));
-            boolean hasOntoportal = configs.stream()
-                    .anyMatch(c -> "ontoportal".equalsIgnoreCase(c.getType()));
-            String description = "Which source(s) to query. Pass one source, several comma-separated "
-                    + "(e.g. earthportal,agroportal), "
-                    + (hasOntoportal ? "or 'ontoportal' to query all OntoPortal sources at once. " : "")
-                    + "Available sources: " + sources + ".";
+            boolean ontoPortalOnly = AnnotatorController.class.equals(handlerMethod.getBeanType());
+            List<String> sources = configs.stream()
+                    .filter(c -> !ontoPortalOnly || c.isOntoPortal())
+                    .map(DatabaseConfig::getName)
+                    .toList();
+            boolean hasOntoportal = configs.stream().anyMatch(DatabaseConfig::isOntoPortal);
+
+            List<String> values = new ArrayList<>();
+            if (hasOntoportal) values.add(ONTOPORTAL_GROUP);
+            values.addAll(sources);
+
+            String description = "Which source(s) to query. Select one or several (Ctrl/Cmd+click)"
+                    + (hasOntoportal ? "; '" + ONTOPORTAL_GROUP + "' queries all OntoPortal sources at once" : "")
+                    + ". In a URL, separate several sources with commas, e.g. database=earthportal,agroportal.";
+
             operation.getParameters().stream()
                     .filter(p -> "database".equals(p.getName()))
-                    .forEach(p -> p.setDescription(description));
+                    .forEach(p -> toSourceList(p, values, description));
             return operation;
         };
+    }
+
+    private static final String ONTOPORTAL_GROUP = "ontoportal";
+
+    private static void toSourceList(Parameter parameter, List<String> values, String description) {
+        // Preselect the controller's example (e.g. "ontoportal") when it is one of the values
+        Object example = parameter.getExample();
+        ArraySchema schema = new ArraySchema().items(new StringSchema()._enum(values));
+        if (example != null && values.contains(example.toString())) {
+            schema.setDefault(List.of(example.toString()));
+        }
+        parameter.setSchema(schema);
+        parameter.setStyle(Parameter.StyleEnum.FORM);
+        parameter.setExplode(false);
+        parameter.setExample(null);
+        parameter.setDescription(description);
     }
 }
